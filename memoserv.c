@@ -159,6 +159,7 @@ void load_ms_dbase(void)
 	return;
     }
     switch (i = get_file_version(f, MEMOSERV_DB)) {
+      case 4:
       case 3:
       case 2:
       case 1:
@@ -229,6 +230,7 @@ void load_news_dbase(void)
 	return;
     }
     switch (i = get_file_version(f, NEWSSERV_DB)) {
+      case 4:
       case 3:
       case 2:
       case 1:
@@ -499,18 +501,16 @@ static void do_send(const char *source)
 			"\2/msg %s HELP\2 for information on registering"
 			"your nickname.", s_NickServ);
 
-      } else if (!(ni->flags & (NI_RECOGNIZED | NI_IDENTIFIED))) {
+      } else if (!(ni->flags & (NI_RECOGNIZED | NI_IDENTIFIED)))
 	notice(s_MemoServ, source, "Permission denied.");
 
-      } else if (!(ci = cs_findchan(arg))) {
-
+      else if (!(ci = cs_findchan(arg)))
 	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
 
-      } else if (!(u = finduser(source)) || get_access(u, ci) < 10) {
-
+      else if (!(u = finduser(source)) || get_access(u, ci) < 10)
 	notice(s_MemoServ, source, "Access denied.");
 
-      } else {
+      else {
 
 	nl = find_newslist(arg);
 	if (!nl) {
@@ -549,13 +549,18 @@ static void do_send(const char *source)
 			"\2/msg %s HELP\2 for information on registering"
 			"your nickname.", s_NickServ);
 
-      } else if (!(ni->flags & (NI_RECOGNIZED | NI_IDENTIFIED))) {
+      } else if (!(ni->flags & (NI_RECOGNIZED | NI_IDENTIFIED)))
 	notice(s_MemoServ, source, "Permission denied.");
 
-      } else if (!findnick(arg)) {
+      else if (!findnick(arg))
 	notice(s_MemoServ, source, "Nick %s isn't registered.", arg);
 
-      } else {
+#if FILE_VERSION > 3
+      else if (is_on_ignore(source,arg))
+	notice(s_MemoServ, source, "Nick %s is ignoring your memos.", arg);
+#endif
+      
+      else {
 	ml = find_memolist(arg);
 	if (!ml) {
 	    ml = scalloc(sizeof(MemoList), 1);
@@ -687,7 +692,7 @@ static void do_read(const char *source)
       notice(s_MemoServ, source,
 		"\2/msg %s HELP READ\2 for more information.", s_MemoServ);
     
-    } else if (!numstr || (num = atoi(numstr)) <= 0) {
+    } else if (!numstr || ((num = atoi(numstr)) <= 0 && stricmp(numstr,"ALL") != 0)) {
       if(arg[0]!='#')
 	notice(s_MemoServ, source, "Syntax: \2READ \37num\37");
       else
@@ -713,19 +718,30 @@ static void do_read(const char *source)
 
       } else {
 
-	int i;
-	for (i = 0; i < nl->n_newss; ++i) {
-	    if (nl->newss[i].number == num)
-		break;
-	}
-	if (i >= nl->n_newss) {
-	    notice(s_MemoServ, source, "News article %d does not exist for %s!", num, arg);
+	if (num>0) {
+	    int i;
+	    for (i = 0; i < nl->n_newss; ++i) {
+		if (nl->newss[i].number == num)
+		    break;
+	    }
+	    if (i >= nl->n_newss) {
+	        notice(s_MemoServ, source, "News article %d does not exist for %s!", num, arg);
+	    } else {
+		m = &nl->newss[i];
+		notice(s_MemoServ, source,
+		    "News %d for %s from %s.",
+		    m->number, arg, m->sender);
+		notice(s_MemoServ, source, "%s", m->text);
+	    }
 	} else {
-	    m = &nl->newss[i];
-	    notice(s_MemoServ, source,
-		"News %d for %s from %s.",
-		m->number, arg, m->sender);
-	    notice(s_MemoServ, source, "%s", m->text);
+	    int i;
+	    for (i = 0; i < nl->n_newss; ++i) {
+		m = &nl->newss[i];
+		notice(s_MemoServ, source,
+		    "News %d for %s from %s.",
+		    m->number, arg, m->sender);
+		notice(s_MemoServ, source, "%s", m->text);
+	    }
 	}
 
       }
@@ -747,19 +763,32 @@ static void do_read(const char *source)
 	notice(s_MemoServ, source, "You have no memos.");
 
       } else {
-	int i;
-	for (i = 0; i < ml->n_memos; ++i) {
-	    if (ml->memos[i].number == num)
-		break;
-	}
-	if (i >= ml->n_memos) {
-	    notice(s_MemoServ, source, "Memo %d does not exist!", num);
+
+	if (num>0) {
+	    int i;
+	    for (i = 0; i < ml->n_memos; ++i) {
+		if (ml->memos[i].number == num)
+		    break;
+	    }
+	    if (i >= ml->n_memos) {
+		notice(s_MemoServ, source, "Memo %d does not exist!", num);
+	    } else {
+		m = &ml->memos[i];
+		notice(s_MemoServ, source,
+		    "Memo %d from %s.  To delete, type: \2/msg %s DEL %d\2",
+		    m->number, m->sender, s_MemoServ, m->number);
+		notice(s_MemoServ, source, "%s", m->text);
+	    }
 	} else {
-	    m = &ml->memos[i];
+	    int i;
+	    for (i = 0; i < ml->n_memos; ++i) {
+		m = &ml->memos[i];
+		notice(s_MemoServ, source,
+		    "Memo %d from %s.", m->number, m->sender);
+		notice(s_MemoServ, source, "%s", m->text);
+	    }
 	    notice(s_MemoServ, source,
-		"Memo %d from %s.  To delete, type: \2/msg %s DEL %d\2",
-		m->number, m->sender, s_MemoServ, m->number);
-	    notice(s_MemoServ, source, "%s", m->text);
+		"To delete, type: \2/msg %s DEL ALL\2", s_MemoServ);
 	}
       }
     }

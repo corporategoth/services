@@ -343,6 +343,7 @@ void load_akill()
 	return;
     }
     switch (i = get_file_version(f, AKILL_DB)) {
+      case 4:
       case 3:
       case 2:
 	nakill = fgetc(f) * 256 + fgetc(f);

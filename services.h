@@ -51,9 +51,10 @@ extern int toupper(char), tolower(char);
  * TO DATE: 1  - Original
  *          2  - Sreamlined Auto Kill Database
  *          3  - Added URL/E-Mail to Nick Database
+ *          4  - Added IGNORE (memo reject)
  */
 
-#define FILE_VERSION	3
+#define FILE_VERSION	4
 
 /*************************************************************************/
 
@@ -76,6 +77,10 @@ struct nickinfo_ {
     time_t last_seen;
     long accesscount;	/* # of entries */
     char **access;	/* Array of strings */
+#if FILE_VERSION > 3
+    long ignorecount;   /* # of entries */
+    char **ignore;	/* Array of strings */
+#endif
     long flags;		/* See below */
     long reserved[4];	/* For future expansion -- set to 0 */
 };

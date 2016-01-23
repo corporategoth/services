@@ -1,9 +1,15 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
-1997/15/09 .1	Only Lvl 20 or sender can delete channel news
+1997/10/21 .2	Added READ ALL to MemoServ (channel and nick)
+		Added ability for oper to op, deop, invite, unban (ChanServ)
+		Added ability for SOP to use clear (ChanServ)
+		Added hard-coded /msg HelpServ Credits (so sue me).
+		Added memo IGNORE list to nickserv.
+		Fixed the nickserv SET IRCOP function
+1997/09/15 .1	Only Lvl 20 or sender can delete channel news
 		Fixed bug in NickServ that Mis-Saved URL/NICK fields
-1997/15/09 .0	Services now respawn if /kill'd
+1997/09/15 .0	Services now respawn if /kill'd
 		Message to users when logon added
 		Disabled @* (and @*.*, etc) AKILLS except for SOPS
 		Disabled @* (and @*.*, etc) AKICKS except for Level 20's

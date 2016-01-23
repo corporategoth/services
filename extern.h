@@ -146,7 +146,9 @@ E void cancel_user(User *u);
 E void check_timeouts(void);
 E void expire_nicks(void);
 E NickInfo *findnick(const char *nick);
-
+#if FILE_VERSION > 3
+    E int is_on_ignore(const char *source, char *target);
+#endif
 
 /**** operserv.c ****/
 

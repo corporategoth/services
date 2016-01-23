@@ -11,12 +11,12 @@ recognize you.
 
 Examples:
 
-    ACCESS ADD achurch@*.dragonfire.net
-        Allows access to user achurch from any machine in
-        the dragonfire.net domain.
+    ACCESS ADD *prez@*.srealm.net.au
+        Allows access to user prez from any machine in
+        the srealm.net.au domain.
 
-    ACCESS DEL achurch@*.dragonfire.net
+    ACCESS DEL *prez@*.srealm.net.au
         Reverses the previous command.
 
-    ACCESS LIST
+    ACCESS LIST
         Displays the current access list.

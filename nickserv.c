@@ -52,7 +52,12 @@ static void do_set_password(NickInfo *ni, char *param);
 #endif
 static void do_set_kill(NickInfo *ni, char *param);
 static void do_set_secure(NickInfo *ni, char *param);
+static void do_set_ircop(NickInfo *ni, char *param);
 static void do_access(const char *source);
+#if FILE_VERSION > 3
+    static void do_ignore(const char *source);
+    int is_on_ignore(const char *source, char *target);
+#endif
 static void do_info(const char *source);
 static void do_list(const char *source);
 static void do_recover(const char *source);
@@ -210,6 +215,11 @@ void nickserv(const char *source, char *buf)
     } else if (stricmp(cmd, "ACCESS") == 0) {
 	do_access(source);
 
+#if FILE_VERSION > 3
+    } else if (stricmp(cmd, "IGNORE") == 0) {
+	do_ignore(source);
+#endif
+
     } else if (stricmp(cmd, "INFO") == 0) {
 	do_info(source);
 
@@ -265,6 +275,37 @@ void load_ns_dbase(void)
 	return;
     }
     switch (i = get_file_version(f, NICKSERV_DB)) {
+      case 4:
+#if FILE_VERSION > 3
+	for (i = 33; i < 256; ++i) {
+	    while (fgetc(f) == 1) {
+		ni = smalloc(sizeof(NickInfo));
+		if (1 != fread(ni, sizeof(NickInfo), 1, f))
+		    fatal_perror("Read error on %s", NICKSERV_DB);
+		ni->flags &= ~(NI_IDENTIFIED | NI_RECOGNIZED);
+		alpha_insert_nick(ni);
+		ni->email = read_string(f, NICKSERV_DB);
+		ni->url = read_string(f, NICKSERV_DB);
+		ni->last_usermask = read_string(f, NICKSERV_DB);
+		ni->last_realname = read_string(f, NICKSERV_DB);
+		if (ni->accesscount) {
+		    char **access;
+		    access = smalloc(sizeof(char *) * ni->accesscount);
+		    ni->access = access;
+		    for (j = 0; j < ni->accesscount; ++j, ++access)
+			*access = read_string(f, NICKSERV_DB);
+		}
+		if (ni->ignorecount) {
+		    char **ignore;
+		    ignore = smalloc(sizeof(char *) * ni->ignorecount);
+		    ni->ignore = ignore;
+		    for (j = 0; j < ni->ignorecount; ++j, ++ignore)
+			*ignore = read_string(f, NICKSERV_DB);
+		}
+	    }
+	}
+	break;
+#endif
       case 3:
 #if FILE_VERSION > 2
 	for (i = 33; i < 256; ++i) {
@@ -326,6 +367,7 @@ void save_ns_dbase(void)
     int i, j, len;
     NickInfo *ni;
     char **access;
+    char **ignore;
 
     remove(NICKSERV_DB ".save");
     if (rename(NICKSERV_DB, NICKSERV_DB ".save") < 0)
@@ -358,6 +400,10 @@ void save_ns_dbase(void)
 							f, NICKSERV_DB);
 	    for (access = ni->access, j = 0; j < ni->accesscount; ++access, ++j)
 		write_string(*access, f, NICKSERV_DB);
+#if FILE_VERSION > 3
+	    for (ignore = ni->ignore, j = 0; j < ni->ignorecount; ++ignore, ++j)
+		write_string(*ignore, f, NICKSERV_DB);
+#endif
 	}
 	fputc(0, f);
     }
@@ -561,6 +607,26 @@ static int is_on_access(User *u, NickInfo *ni)
     return 0;
 }
 
+/* Is the given user's nick on the given nick's ignore list?  Return 1
+ * if so, 0 if not. */
+
+#if FILE_VERSION > 3
+int is_on_ignore(const char *source, char *target)
+{
+    int i;
+    NickInfo *ni;
+    char **ignore;
+    
+    if (ni = findnick(target)) {
+	for (ignore = ni->ignore, i = 0; i < ni->ignorecount; ++ignore, ++i) {
+	    if (stricmp(*ignore,source)==0)
+		return 1;
+	}
+    }
+    return 0;
+}
+#endif
+
 /*************************************************************************/
 
 /* Insert a nick alphabetically into the database. */
@@ -631,6 +697,13 @@ static int delnick(NickInfo *ni)
 	    free(ni->access[i]);
 	free(ni->access);
     }
+#if FILE_VERSION > 3
+    if (ni->ignore) {
+	for (i = 0; i < ni->ignorecount; ++i)
+	    free(ni->ignore[i]);
+	free(ni->ignore);
+    }
+#endif
     return 1;
 }
 
@@ -1006,6 +1079,10 @@ static void do_set(const char *source)
 
 	do_set_secure(ni, param);
 
+    } else if (stricmp(cmd, "IRCOP") == 0 && is_oper(source)) {
+    
+        do_set_ircop(ni,param);
+    
     } else {
 
 	notice(s_NickServ, source,
@@ -1229,6 +1306,112 @@ static void do_access(const char *source)
 
 /*************************************************************************/
 
+#if FILE_VERSION > 3
+static void do_ignore(const char *source)
+{
+    char *cmd = strtok(NULL, " ");
+    char *nick = strtok(NULL, " ");
+    NickInfo *ni = findnick(source);
+    User *u;
+    int i;
+    char **ignore;
+
+    if (!cmd || ((stricmp(cmd,"LIST")==0) ? !!nick : !nick)) {
+
+	notice(s_NickServ, source,
+		"Syntax: \2IGNORE {ADD|DEL} [\37nick\37]\2");
+	notice(s_NickServ, source,
+		"\2/msg %s HELP IGNORE\2 for more information.", s_NickServ);
+
+    } else if (!ni) {
+
+	notice(s_NickServ, source, "Your nick isn't registered.");
+
+    } else if (!(u = finduser(source)) || !(ni->flags & NI_IDENTIFIED)) {
+
+	notice(s_NickServ, source,
+		"Password authentication required for that command.");
+	notice(s_NickServ, source,
+		"Retry after typing \2/msg %s IDENTIFY \37password\37.",
+		s_NickServ);
+	if (!u)
+	    log("%s: SET from nonexistent user %s", s_NickServ, source);
+
+    } else if (stricmp(cmd, "ADD") == 0) {
+
+	for (ignore = ni->ignore, i = 0; i < ni->ignorecount; ++ignore, ++i) {
+	    if (strcmp(*ignore, nick) == 0) {
+		notice(s_NickServ, source,
+			"Nick \2%s\2 already present on your ignore list.",
+			*ignore);
+		return;
+	    }
+	}
+	if (stricmp(source, nick)==0) {
+	    notice(s_NickServ, source, "You know, I should do it, just to spite you.");
+	    return; }
+	if (!findnick(nick)) {
+	    notice(s_NickServ, source, "\2%s\2 is not registered.", nick);
+	    return; }
+	++ni->ignorecount;
+	ni->ignore = srealloc(ni->access, sizeof(char *) * ni->ignorecount);
+	ni->ignore[ni->ignorecount-1] = sstrdup(nick);
+	notice(s_NickServ, source, "\2%s\2 added to your ignore list.", nick);
+
+    } else if (stricmp(cmd, "DEL") == 0) {
+
+	/* First try for an exact match; then, a case-insensitive one. */
+	for (ignore = ni->ignore, i = 0; i < ni->ignorecount; ++ignore, ++i) {
+	    if (strcmp(*ignore, nick) == 0)
+		break;
+	}
+	if (i == ni->ignorecount) {
+	    for (ignore = ni->ignore, i = 0; i < ni->ignorecount;
+							++ignore, ++i) {
+		if (stricmp(*ignore, nick) == 0)
+		    break;
+	    }
+	}
+	if (i == ni->ignorecount) {
+	    notice(s_NickServ, source,
+			"\2%s\2 not found on your ignore list.", nick);
+	    return;
+	}
+	notice(s_NickServ, source,
+		"\2%s\2 deleted from your ignore list.", *ignore);
+	free(*ignore);
+	--ni->ignorecount;
+	if (i < ni->ignorecount)	/* if it wasn't the last entry... */
+	    bcopy(ignore+1, ignore, (ni->ignorecount-i) * sizeof(char *));
+	if (ni->ignorecount)		/* if there are any entries left... */
+	    ni->ignore = srealloc(ni->ignore, ni->ignorecount * sizeof(char *));
+	else {
+	    free(ni->ignore);
+	    ni->ignore = NULL;
+	}
+
+    } else if (stricmp(cmd, "LIST") == 0) {
+
+	notice(s_NickServ, source, "Ignore list:");
+	for (ignore = ni->ignore, i = 0; i < ni->ignorecount; ++ignore, ++i) {
+	    if (nick && !match_wild(nick, *ignore))
+		continue;
+	    notice(s_NickServ, source, "    %s", *ignore);
+	}
+
+    } else {
+
+	notice(s_NickServ, source,
+		"Syntax: \2IGNORE {ADD|DEL|LIST} [\37nick\37]\2");
+	notice(s_NickServ, source,
+		"\2/msg %s HELP IGNORE\2 for more information.", s_NickServ);
+
+    }
+}
+#endif
+
+/*************************************************************************/
+
 static void do_info(const char *source)
 {
     char *nick = strtok(NULL, " ");
@@ -1294,7 +1477,12 @@ static void do_info(const char *source)
 	if (!*buf)
 	    strcpy(buf, "None");
 	notice(s_NickServ, source, "          Options: %s", buf);
-
+#if FILE_VERSION > 3
+	if (is_on_ignore(source,nick))
+	    notice(s_NickServ, source, "NOTE: This user is ignoring your memos.");
+#endif
+	if (finduser(nick))
+	    notice(s_NickServ, source, "This user is online, type \2/whois %s\2 for more information.", nick);
     }
 }
 

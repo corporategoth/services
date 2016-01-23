@@ -342,6 +342,7 @@ void load_cs_dbase(void)
 
     switch (i = get_file_version(f, CHANSERV_DB)) {
 
+      case 4:
       case 3:
 #if FILE_VERSION > 2
 
@@ -2491,6 +2492,7 @@ static void do_list(const char *source)
 static void do_invite(const char *source)
 {
     char *chan = strtok(NULL, " ");
+    char *inv_params = strtok(NULL, " ");  
     User *u = finduser(source);
     ChannelInfo *ci;
 
@@ -2500,23 +2502,22 @@ static void do_invite(const char *source)
 	notice(s_ChanServ, source,
 		"\2/msg %s HELP INVITE\2 for more information.", s_ChanServ);
 
-    } else if (!findchan(chan)) {
-
+    } else if (!findchan(chan))
 	notice(s_ChanServ, source, "Channel %s does not exist.", chan);
 
-    } else if (!(ci = cs_findchan(chan))) {
-
+    else if (!(ci = cs_findchan(chan)))
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!u || get_access(u, ci) < 1) {
+    else if ((!u || get_access(u, ci) < 1) && !is_oper(source))
+	    notice(s_ChanServ, source, "Access denied.");
 
-	notice(s_ChanServ, source, "Access denied.");
-
-    } else {
-
-	send_cmd(s_ChanServ, "INVITE %s %s", source, chan);
-
+    else {
+	if (!inv_params || !is_oper(source))
+	    send_cmd(s_ChanServ, "INVITE %s %s", source, chan);
+	else
+	    send_cmd(s_ChanServ, "INVITE %s %s", inv_params, chan);
     }
+
 }
 
 /*************************************************************************/
@@ -2529,22 +2530,25 @@ static void do_op(const char *source)
     ChannelInfo *ci;
     int ulev;
 
-    if (!chan || !op_params) {
+    if (!chan) {
 	notice(s_ChanServ, source,
-		"Syntax: \2OP\2 \037channel\037 \037nick\037");
+		"Syntax: \2OP\2 \037channel\037");
 	notice(s_ChanServ, source,
 		"\2/msg ChanServ HELP OP\2 for more information.");
 
-    } else if (!(ci = cs_findchan(chan))) {
+    } else if (!(ci = cs_findchan(chan)))
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!u || (ulev = get_access(u, ci)) < 5) {
-	notice(s_ChanServ, source, "Access denied.");
+    else if ((!u || (ulev = get_access(u, ci)) < 5) && !is_oper(source))
+	    notice(s_ChanServ, source, "Access denied.");
 
-    } else {
-	send_cmd(s_ChanServ, "MODE %s +o %s  0", chan, op_params);
-
+    else {
+	if (!op_params || !is_oper(source))
+	    send_cmd(s_ChanServ, "MODE %s +o %s  0", chan, source);
+	else
+	    send_cmd(s_ChanServ, "MODE %s +o %s  0", chan, op_params);
     }
+
 }
 
 /*************************************************************************/
@@ -2563,15 +2567,17 @@ static void do_deop(const char *source)
 	notice(s_ChanServ, source,
 		"\2/msg ChanServ HELP DEOP\2 for more information.");
 
-    } else if (!(ci = cs_findchan(chan))) {
+    } else if (!(ci = cs_findchan(chan)))
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!u || (ulev = get_access(u, ci)) < 5) {
+    else if ((!u || (ulev = get_access(u, ci)) < 1) && !is_oper(source))
 	notice(s_ChanServ, source, "Access denied.");
 
-    } else {
-	send_cmd(s_ChanServ, "MODE %s -o %s  0", chan, deop_params);
-
+    else {
+	if (!deop_params || !is_oper(source))
+	    send_cmd(s_ChanServ, "MODE %s -o %s  0", chan, source);
+	else
+	    send_cmd(s_ChanServ, "MODE %s -o %s  0", chan, deop_params);
     }
 }
 
@@ -2580,11 +2586,17 @@ static void do_deop(const char *source)
 static void do_unban(const char *source)
 {
     char *chan = strtok(NULL, " ");
-    User *u = finduser(source);
+    char *unban_params = strtok(NULL, " ");
+    User *u;
     ChannelInfo *ci;
     Channel *c;
     int i;
     char *av[3];
+
+    if (!is_oper(source))
+	u = finduser(source);
+    else
+	u = finduser(unban_params);
 
     if (!chan) {
 
@@ -2592,19 +2604,16 @@ static void do_unban(const char *source)
 	notice(s_ChanServ, source,
 		"\2/msg %s HELP UNBAN\2 for more information.", s_ChanServ);
 
-    } else if (!(c = findchan(chan))) {
-
+    } else if (!(c = findchan(chan)))
 	notice(s_ChanServ, source, "Channel %s does not exist.", chan);
 
-    } else if (!(ci = cs_findchan(chan))) {
-
+    else if (!(ci = cs_findchan(chan)))
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!u || get_access(u, ci) < 1) {
+    else if ((!u || get_access(u, ci) < 1) && !is_oper(source))
+    	    notice(s_ChanServ, source, "Access denied.");
 
-	notice(s_ChanServ, source, "Access denied.");
-
-    } else {
+    else {
 
 	av[0] = chan;
 	av[1] = sstrdup("-b");
@@ -2617,7 +2626,10 @@ static void do_unban(const char *source)
 	    }
 	}
 	free(av[1]);
-	notice(s_ChanServ, source, "You have been unbanned from %s.", chan);
+	if (!unban_params || !is_oper(source))
+	    notice(s_ChanServ, source, "You have been unbanned from %s.", chan);
+	else
+	    notice(s_ChanServ, source, "%s has been unbanned from %s.", unban_params, chan);
 
     }
 }
@@ -2639,16 +2651,13 @@ static void do_clear(const char *source)
 	notice(s_ChanServ, source,
 		"\2/msg %s HELP CLEAR\2 for more information.", s_ChanServ);
 
-    } else if (!(c = findchan(chan))) {
-
+    } else if (!(c = findchan(chan)))
 	notice(s_ChanServ, source, "Channel %s does not exist.", chan);
 
-    } else if (!(ci = cs_findchan(chan))) {
-
+    else if (!(ci = cs_findchan(chan)))
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!u || get_access(u, ci) < 10) {
-
+    else if ((!u || get_access(u, ci) < 10) && !is_services_op(source)) {
 	notice(s_ChanServ, source, "Access denied.");
 
     } else if (stricmp(what, "bans") == 0) {

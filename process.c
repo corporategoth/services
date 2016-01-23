@@ -136,6 +136,7 @@ void process()
     char *s;
     int ac;			/* Parameters for the command */
     char **av;
+    FILE *f;
     time_t starttime, stoptime;	/* When processing started and finished */
 
 
@@ -187,11 +188,25 @@ void process()
 #endif
 
     } else if (stricmp(cmd, "AWAY") == 0) {
+	FILE *f;
+	char buf[BUFSIZE];
 
+	if (ac == 0 || *av[0] == 0) {	/* un-away */
 #ifndef SKELETON
-	if (ac == 0 || *av[0] == 0)	/* un-away */
 	    check_memos(source);
 #endif
+
+#ifdef GLOBALNOTICER_ON
+	    /* Send global message to user when they set back */
+	    if (f = fopen(LOGON_MSG, "r")) {
+		while (fgets(buf, sizeof(buf), f)) {
+		    buf[strlen(buf)-1] = 0;
+		    notice(s_GlobalNoticer, source, "%s", buf ? buf : " ");
+		}
+		fclose(f);
+	    }
+#endif
+	}
 
     } else if (stricmp(cmd, "GLOBOPS") == 0
 	    || stricmp(cmd, "GNOTICE") == 0

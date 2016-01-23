@@ -181,11 +181,11 @@ User *finduser(const char *nick)
 void do_nick(const char *source, int ac, char **av)
 {
     User *user;
-    FILE *f;
-    char buf[256], *s;
 
     if (!*source) {
 	/* This is a new user; create a User structure for it. */
+	FILE *f;
+	char buf[BUFSIZE];
 
 	if (debug)
 	    log("debug: new user: %s", av[0]);
@@ -214,12 +214,8 @@ void do_nick(const char *source, int ac, char **av)
 	/* Send global message to user when they log on */
 	if (f = fopen(LOGON_MSG, "r")) {
 	    while (fgets(buf, sizeof(buf), f)) {
-		s = strtok(buf, "\n");
-		/* Use this odd construction to prevent any %'s in the text from
-		 * doing weird stuff to the output.  Also replace blank lines by
-		 * spaces (see send.c/notice_list() for an explanation of why).
-		 */
-		notice(s_GlobalNoticer, av[0], "%s", s ? s : " ");
+		buf[strlen(buf)-1] = 0;
+		notice(s_GlobalNoticer, av[0], "%s", buf ? buf : " ");
 	    }
 	    fclose(f);
 	}
@@ -619,7 +615,7 @@ char *create_mask(User *u)
     char *mask, *s, *end;
 
     end = mask = smalloc(strlen(u->username) + strlen(u->host) + 2);
-    end += sprintf(end, "%s@", u->username);
+    end += sprintf(end, "*%s@", u->username);
     if (strspn(u->host, "0123456789.") == strlen(u->host)) {	/* IP addr */
 	s = sstrdup(u->host);
 	*strrchr(s, '.') = 0;

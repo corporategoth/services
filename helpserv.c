@@ -53,6 +53,22 @@ static void do_help(const char *whoami, const char *source, char *topic)
 	topic = "help";
     old_topic = sstrdup(topic);
 
+  if (stricmp(topic, "CREDITS")==0) {
+	notice(whoami, source, "Services are written by \2Preston A. Elder\2 \37<\37\37\2prez\2\37\37@\37\37\2antisocial.com\2\37\37>\37.");
+	notice(whoami, source, "Yes, I decided to give myself a shameless plug.");
+	notice(whoami, source, " ");
+	notice(whoami, source, "Thanks to:");
+	notice(whoami, source, "    \37Lord Striker\37 - for endless dumb looks.");
+	notice(whoami, source, "                   Also for the IGNORE idea :)");
+	notice(whoami, source, "    \37Gremlin     \37 - yeah, a pain in the ass,");
+	notice(whoami, source, "                   but the only one who");
+	notice(whoami, source, "                   reported my bugs.");
+	notice(whoami, source, "    \37Unilynx     \37 - for giving me competition.");
+	notice(whoami, source, "    \37Coca-Cola   \37 - Life Support *bleep, bleep*.");
+	notice(whoami, source, "    \37Tschaicovski\37 - You wouldnt understand.");
+	notice(whoami, source, "    \37Girls       \37 - For snobbing me, thus making");
+	notice(whoami, source, "                   me lifeless nuff to do this.");
+  } else {
     /* As we copy path parts, (1) lowercase everything and (2) make sure
      * we don't let any special characters through -- this includes '.'
      * (which could get parent dir) or '/' (which couldn't _really_ do
@@ -101,5 +117,6 @@ static void do_help(const char *whoami, const char *source, char *topic)
 	notice(whoami, source, "%s", s ? s : " ");
     }
     fclose(f);
+  }
     free(old_topic);
 }

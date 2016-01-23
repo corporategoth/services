@@ -6,5 +6,6 @@ As of now, it has three commands:
     LISTADMIN - Lists the Services staff
     SERVER - Retrieves info on the server specified
     RULES - Guidelines & info about DarkerNet
+    CREDITS - Services credits (author info + thanks to)
 
 More commands will be added as helpfiles are written.
