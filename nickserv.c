@@ -346,14 +346,14 @@ void save_ns_dbase(void)
 	    fputc(1, f);
 	    if (1 != fwrite(ni, sizeof(NickInfo), 1, f))
 		fatal_perror("Write error on %s", NICKSERV_DB);
-	    write_string(ni->last_usermask ? ni->last_usermask : "",
-							f, NICKSERV_DB);
 #if FILE_VERSION > 2
 	    write_string(ni->email ? ni->email : "",
 							f, NICKSERV_DB);
 	    write_string(ni->url ? ni->url : "",
 							f, NICKSERV_DB);
 #endif
+	    write_string(ni->last_usermask ? ni->last_usermask : "",
+							f, NICKSERV_DB);
 	    write_string(ni->last_realname ? ni->last_realname : "",
 							f, NICKSERV_DB);
 	    for (access = ni->access, j = 0; j < ni->accesscount; ++access, ++j)

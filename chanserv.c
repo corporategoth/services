@@ -2210,7 +2210,7 @@ static void do_akick(const char *source)
 
 
       /* Find @*, @*.*, @*.*.*, etc. and dissalow if !>20 */
-    for(i=strlen(mask)-1;mask[i]=='*' || mask[i]=='?' || mask[i]=='.' ;i--) ;
+    for(i=strlen(mask)-1;mask[i]=='!' || mask[i]=='*' || mask[i]=='?' || mask[i]=='.' ;i--) ;
     if(mask[i]=='@' && (get_access(u, ci) < 20))
 	notice(s_ChanServ, source, "@* AKICK's are not allowed!!");
     else {

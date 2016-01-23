@@ -1,6 +1,8 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
+1997/15/09 .1	Only Lvl 20 or sender can delete channel news
+		Fixed bug in NickServ that Mis-Saved URL/NICK fields
 1997/15/09 .0	Services now respawn if /kill'd
 		Message to users when logon added
 		Disabled @* (and @*.*, etc) AKILLS except for SOPS

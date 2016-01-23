@@ -826,12 +826,16 @@ static void do_del(const char *source)
 		    break;
 	    }
 	    if (i < nl->n_newss) {
-		free(nl->newss[i].text); /* Deallocate news text newsry */
-		--nl->n_newss;		 /* One less news now */
-		if (i < nl->n_newss)	 /* Move remaining newss down a slot */
-		    bcopy(nl->newss + i+1, nl->newss + i,
+		if((stricmp(nl->newss[i].sender, source) == 0) || (get_access(u, ci) >= 20)) {
+		    free(nl->newss[i].text); /* Deallocate news text newsry */
+		    --nl->n_newss;		 /* One less news now */
+		    if (i < nl->n_newss)	 /* Move remaining newss down a slot */
+		        bcopy(nl->newss + i+1, nl->newss + i,
 					sizeof(Memo) * (nl->n_newss - i));
-		notice(s_MemoServ, source, "News article %d for %s has been deleted.", num, arg);
+		    notice(s_MemoServ, source, "News article %d for %s has been deleted.", num, arg);
+		} else {
+		    notice(s_MemoServ, source, "Access denied (not sender).");
+		}
 	    } else {
 		notice(s_MemoServ, source, "News article %d for %s does not exist!", num, arg);
 	    }
