@@ -556,7 +556,7 @@ static void do_send(const char *source)
 	notice(s_MemoServ, source, "Nick %s isn't registered.", arg);
 
 #if FILE_VERSION > 3
-      else if (is_on_ignore(source,arg))
+      else if (is_on_ignore(source,arg) && !(ni->flags & NI_IRCOP))
 	notice(s_MemoServ, source, "Nick %s is ignoring your memos.", arg);
 #endif
       

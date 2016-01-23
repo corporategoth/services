@@ -1311,7 +1311,7 @@ static void do_ignore(const char *source)
 {
     char *cmd = strtok(NULL, " ");
     char *nick = strtok(NULL, " ");
-    NickInfo *ni = findnick(source);
+    NickInfo *ni = findnick(source), *tni;
     User *u;
     int i;
     char **ignore;
@@ -1347,16 +1347,18 @@ static void do_ignore(const char *source)
 		return;
 	    }
 	}
-	if (stricmp(source, nick)==0) {
-	    notice(s_NickServ, source, "You know, I should do it, just to spite you.");
-	    return; }
-	if (!findnick(nick)) {
+	if (!(tni = findnick(nick))) {
 	    notice(s_NickServ, source, "\2%s\2 is not registered.", nick);
-	    return; }
-	++ni->ignorecount;
-	ni->ignore = srealloc(ni->access, sizeof(char *) * ni->ignorecount);
-	ni->ignore[ni->ignorecount-1] = sstrdup(nick);
-	notice(s_NickServ, source, "\2%s\2 added to your ignore list.", nick);
+	    return;
+	} else if (stricmp(source, nick)==0) {
+	    notice(s_NickServ, source, "You know, I should do it, just to spite you.");
+	    return;
+	} else {
+	    ++ni->ignorecount;
+	    ni->ignore = srealloc(ni->ignore, sizeof(char *) * ni->ignorecount);
+	    ni->ignore[ni->ignorecount-1] = sstrdup(tni->nick);
+	    notice(s_NickServ, source, "\2%s\2 added to your ignore list.", tni->nick);
+	}
 
     } else if (stricmp(cmd, "DEL") == 0) {
 
@@ -1392,11 +1394,19 @@ static void do_ignore(const char *source)
 
     } else if (stricmp(cmd, "LIST") == 0) {
 
+	char *buf;
+	NickInfo *tni;
+	
 	notice(s_NickServ, source, "Ignore list:");
 	for (ignore = ni->ignore, i = 0; i < ni->ignorecount; ++ignore, ++i) {
 	    if (nick && !match_wild(nick, *ignore))
 		continue;
-	    notice(s_NickServ, source, "    %s", *ignore);
+
+	    if (!(tni = findnick(*ignore)))
+		notice(s_NickServ, source, "    %s", *ignore);
+	    else
+		notice(s_NickServ, source,
+			"    %s (%s)", *ignore, tni->last_usermask);
 	}
 
     } else {

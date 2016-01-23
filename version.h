@@ -8,7 +8,7 @@
 
 #define BUILD	"1"
 
-const char version_number[] = "3.0.1";
+const char version_number[] = "3.0.3";
 const char version_build[] =
 	"build #" BUILD ", compiled " __DATE__ " " __TIME__
 #ifdef SKELETON

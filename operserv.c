@@ -72,10 +72,30 @@ void operserv(const char *source, char *buf)
 
     } else if (stricmp(cmd, "MODE") == 0) {
 
+	Channel *c;
+	char l[16];
+	chan = strtok(NULL, " ");
 	s = strtok(NULL, "");
-	if (!s)
+	if (!chan)
 	    return;
-	send_cmd(s_OperServ, "MODE %s", s);
+        else if (!(c = findchan(chan)))
+            return;
+	else if (!s) {
+	    sprintf(l, " %d", c->limit);
+	    notice(s_OperServ, source, "%s +%s%s%s%s%s%s%s%s%s%s%s", c->name,
+				(c->mode&CMODE_I) ? "i" : "",
+				(c->mode&CMODE_M) ? "m" : "",
+				(c->mode&CMODE_N) ? "n" : "",
+				(c->mode&CMODE_P) ? "p" : "",
+				(c->mode&CMODE_S) ? "s" : "",
+				(c->mode&CMODE_T) ? "t" : "",
+				(c->limit)        ? "l" : "",
+				(c->key)          ? "k" : "",
+				(c->limit)        ?  l  : "",
+				(c->key)          ? " " : "",
+				(c->key)          ? c->key : "");
+	} else
+	    send_cmd(s_OperServ, "MODE %s %s", chan, s);
 
     } else if (stricmp(cmd, "KICK") == 0) {
 

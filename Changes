@@ -1,6 +1,8 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
+1997/10/22 .3	Fixed a bug in ignore (was stuffing ACCESS list)
+		Added OperServ Mode #channel returning current modes
 1997/10/21 .2	Added READ ALL to MemoServ (channel and nick)
 		Added ability for oper to op, deop, invite, unban (ChanServ)
 		Added ability for SOP to use clear (ChanServ)

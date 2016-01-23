@@ -401,7 +401,7 @@ void process()
     } else if (stricmp(cmd, "VERSION") == 0) {
 
 	if (source)
-	    send_cmd(server_name, "351 %s %s %s :-- %s",
+	    send_cmd(server_name, "351 %s %s %s (Preston A. Elder) :-- %s",
 			source, version_number, server_name, version_build);
 
     } else {
