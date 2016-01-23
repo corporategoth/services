@@ -56,6 +56,9 @@ int save_data = 0;
 /* At what time were we started? */
 time_t start_time;
 
+#ifdef OPERSERV
+int mode = 1; /* ON by default! */
+#endif
 
 /******** Local variables! ********/
 
@@ -265,51 +268,53 @@ void write_file_version(FILE *f, const char *filename)
 # define NICK(nick,name) \
     do { \
 	send_cmd(NULL, "NICK %s :1", (nick)); \
-	send_cmd((nick), "USER %ld %s %s %s :%s", \
+	send_cmd((nick), "USER %s %s %s :%s", \
 		services_user, services_host, server_name, (name)); \
     } while (0)
 #endif
 
 void introduce_user(const char *user)
 {
-#ifdef NICKSERV_ON
+#ifndef SKELETON
+# ifdef NICKSERV
     if (!user || stricmp(user, s_NickServ) == 0) {
 	NICK(s_NickServ, "Nickname Server");
     }
-#endif
-#ifdef CHANSERV_ON
+# endif
+# ifdef CHANSERV
     if (!user || stricmp(user, s_ChanServ) == 0) {
 	NICK(s_ChanServ, "Channel Server");
     }
-#endif
-#ifdef HELPSERV_ON
+# endif
+# ifdef HELPSERV
     if (!user || stricmp(user, s_HelpServ) == 0) {
 	NICK(s_HelpServ, "Help Server");
     }
-#endif
-#ifdef IRCIIHELP_ON
+# endif
+# ifdef IRCIIHELP
     if (!user || stricmp(user, "IrcIIHelp") == 0) {
 	NICK("IrcIIHelp", "ircII Help Server");
     }
-#endif
-#ifdef MEMOSERV_ON
+# endif
+# ifdef MEMOSERV
     if (!user || stricmp(user, s_MemoServ) == 0) {
 	NICK(s_MemoServ, "Memo Server");
     }
+# endif
+# ifdef DEVNULL
+    if (!user || stricmp(user, "DevNull") == 0) {
+	NICK("DevNull", "/dev/null -- message sink");
+	send_cmd(NULL, ":DevNull MODE DevNull +i");
+    }
+# endif
 #endif
-#ifdef OPERSERV_ON
+#ifdef OPERSERV
     if (!user || stricmp(user, s_OperServ) == 0) {
 	NICK(s_OperServ, "Operator Server");
 	send_cmd(s_OperServ, "MODE %s +i", s_OperServ);
     }
 #endif
-#ifdef DEVNULL_ON
-    if (!user || stricmp(user, "DevNull") == 0) {
-	NICK("DevNull", "/dev/null -- message sink");
-	send_cmd(NULL, ":DevNull MODE DevNull +i");
-    }
-#endif
-#ifdef GLOBALNOTICER_ON
+#ifdef GLOBALNOTICER
     if (!user || stricmp(user, s_GlobalNoticer) == 0) {
 	NICK(s_GlobalNoticer, "Global Noticer");
 	send_cmd(s_GlobalNoticer, "MODE %s +io", s_GlobalNoticer);
@@ -401,7 +406,9 @@ int main(int ac, char **av)
      * appropriate special stuff if so. */
 
     if (strcmp(progname, "listnicks") == 0) {
-
+#ifndef NICKSERV
+	fprintf(stderr, "NickServ was not compiled into this version of services\n");
+#else
 	int count = 0;	/* Count only rather than display? */
 	int usage = 0;	/* Display command usage?  (>0 also indicates error) */
 	int i;
@@ -457,8 +464,11 @@ are given, detailed information about those nicks is displayed.\n\
 	}
 	return 0;
 
-
+#endif
     } else if (strcmp(progname, "listchans") == 0) {
+#ifndef CHANSERV
+	fprintf(stderr, "ChanServ was not compiled into this version of services\n");
+#else
 
 	int count = 0;	/* Count only rather than display? */
 	int usage = 0;	/* Display command usage?  (>0 also indicates error) */
@@ -516,6 +526,7 @@ are given, detailed information about those channels is displayed.\n\
 	}
 	return 0;
 
+#endif
     }
 
 #endif	/* !SKELETON */
@@ -676,12 +687,22 @@ are given, detailed information about those channels is displayed.\n\
     /* Load up databases. */
 
 #ifndef SKELETON
+# ifdef NICKSERV
     load_ns_dbase();
+# endif
+# ifdef CHANSERV
     load_cs_dbase();
+# endif
+# ifdef MEMOS
     load_ms_dbase();
+# endif
+# ifdef NEWS
     load_news_dbase();
+# endif
 #endif
+#ifdef AKILL
     load_akill();
+#endif
 
 
     /* Connect to the remote server */
@@ -722,18 +743,36 @@ are given, detailed information about those channels is displayed.\n\
 #if !defined(SKELETON) && !defined(READONLY)
 	    /* First check for expired nicks/channels */
 	    waiting = -22;
+# ifdef NICKSERV
 	    expire_nicks();
+# endif
+# ifdef CHANSERV
 	    expire_chans();
+# endif
+# ifdef NEWS
+	    expire_news();
+# endif
+#endif
+#if !defined(READONLY) && defined(AKILL)
+	    expire_akill();
 #endif
 	    /* Now actually save stuff */
 	    waiting = -2;
 #if !defined(SKELETON) && !defined(READONLY)
+# ifdef NICKSERV
 	    save_ns_dbase();
+# endif
+# ifdef CHANSERV
 	    save_cs_dbase();
+# endif
+# ifdef MEMOS
 	    save_ms_dbase();
+# endif
+# ifdef NEWS
 	    save_news_dbase();
+# endif
 #endif
-#ifndef READONLY
+#if !defined(READONLY) && defined(AKILL)
 	    save_akill();
 #endif
 	    if (save_data < 0)
@@ -743,7 +782,7 @@ are given, detailed information about those channels is displayed.\n\
 	    last_update = t;
 	}
 	waiting = -1;
-#ifndef SKELETON
+#ifdef NICKSERV
 	/* Ew... hardcoded constant.  Somebody want to come up with a good
 	 * name for this? */
 	if (t-last_check >= 3)

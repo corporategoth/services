@@ -63,6 +63,26 @@ void notice(const char *source, const char *dest, const char *fmt, ...)
     sprintf(buf, "NOTICE %s :%s", dest, fmt);
     vsend_cmd(source, buf, args);
 }
+void noticeall(const char *source, const char *fmt, ...)
+{
+    va_list args;
+    char buf[2048];
+
+    va_start(args, fmt);
+#ifdef HAVE_ALLWILD_NOTICE
+    sprintf(buf, "NOTICE $* :%s", fmt);
+#else
+# ifdef NETWORK_DOMAIN
+    sprintf(buf, "NOTICE $*.%s :%s", NETWORK_DOMAIN, fmt);
+# else
+    sprintf(buf, "NOTICE $*.com :%s", fmt);
+    sprintf(buf, "NOTICE $*.net :%s", fmt);
+    sprintf(buf, "NOTICE $*.org :%s", fmt);
+    sprintf(buf, "NOTICE $*.edu :%s", fmt);
+# endif
+#endif
+    vsend_cmd(source, buf, args);
+}
 
 /* Send a NULL-terminated array of text as NOTICEs. */
 void notice_list(const char *source, const char *dest, const char **text)

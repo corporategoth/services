@@ -16,8 +16,10 @@
 /**** channels.c ****/
 
 E void get_channel_stats(long *nrec, long *memuse);
+#ifdef OPERSERV
 E void send_channel_list(const char *user);
 E void send_channel_users(const char *user, const char *chan);
+#endif
 E Channel *findchan(const char *chan);
 E void chan_adduser(User *user, const char *chan);
 E void chan_deluser(User *user, Channel *c);
@@ -27,6 +29,7 @@ E void do_topic(const char *source, int ac, char **av);
 
 /**** chanserv.c ****/
 
+#ifdef CHANSERV
 E const char s_ChanServ[];
 
 E void listchans(int count_only, const char *chan);
@@ -43,7 +46,7 @@ E void record_topic(const char *chan);
 E void restore_topic(const char *chan);
 E int check_topiclock(const char *chan);
 E void expire_chans(void);
-
+#endif
 
 /**** helpserv.c ****/
 
@@ -86,19 +89,24 @@ E void introduce_users(const char *);
 
 /**** memoserv.c ****/
 
+#ifdef MEMOSERV
 E const char s_MemoServ[];
 
 E void get_memoserv_stats(long *nrec, long *memuse);
 
 E void memoserv(const char *source, char *buf);
+# ifdef MEMOS
 E void load_ms_dbase(void);
 E void save_ms_dbase(void);
 E void check_memos(const char *nick);
+# endif
+# ifdef NEWS
 E void load_news_dbase(void);
 E void save_news_dbase(void);
 E void check_newss(const char *chan, const char *source);
 E void expire_news(void);
-
+# endif
+#endif
 
 /**** misc.c ****/
 
@@ -133,6 +141,7 @@ E char *write_string(const char *s, FILE *f, const char *filename);
 
 /**** nickserv.c ****/
 
+#ifdef NICKSERV
 E const char s_NickServ[];
 
 E void listnicks(int count_only, const char *nick);
@@ -146,22 +155,29 @@ E void cancel_user(User *u);
 E void check_timeouts(void);
 E void expire_nicks(void);
 E NickInfo *findnick(const char *nick);
-#if FILE_VERSION > 3
+#if (FILE_VERSION > 3) && defined(MEMOS)
     E int is_on_ignore(const char *source, char *target);
+#endif
 #endif
 
 /**** operserv.c ****/
 
+#ifdef OPERSERV
 E const char s_OperServ[];
 E const char s_GlobalNoticer[];
 
 E void operserv(const char *source, char *buf);
 E int is_services_op(const char *nick);
+#ifdef AKILL
 E void load_akill(void);
 E void save_akill(void);
 E int check_akill(const char *nick, const char *username, const char *host);
+E void expire_akill(void);
+#endif
+#ifdef CLONES
 E void check_clones(User *user);
-
+#endif
+#endif
 
 /**** process.c ****/
 
@@ -198,7 +214,9 @@ E void disconn(int s);
 
 E int usercnt, opcnt, maxusercnt;
 
+#ifdef OPERSERV
 E void send_user_list(const char *user);
+#endif
 E void get_user_stats(long *nusers, long *memuse);
 E User *finduser(const char *nick);
 

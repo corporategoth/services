@@ -698,6 +698,6 @@ echo "done."
 ###########################################################################
 
 echo 'All done!'
-echo 'Dont forget to edit the config.h file to your own
+echo 'Dont forget to edit the config.h file to your own'
 echo 'specifications! - type "make" to compile Services.'
 exit 0

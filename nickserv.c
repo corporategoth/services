@@ -8,6 +8,8 @@
 
 #include "services.h"
 
+#ifdef NICKSERV
+
 static NickInfo *nicklists[256];	/* One for each initial character */
 
 const char s_NickServ[] = "NickServ";
@@ -28,6 +30,10 @@ struct timeout_ {
 
 Timeout *timeouts = NULL;
 
+#ifdef MEMOS
+extern MemoList *memolists[256];
+extern MemoList *find_memolist(const char *nick);
+#endif
 
 static int is_on_access(User *u, NickInfo *ni);
 static void alpha_insert_nick(NickInfo *ni);
@@ -51,10 +57,11 @@ static void do_set_password(NickInfo *ni, char *param);
     static void do_set_url(NickInfo *ni, char *param);
 #endif
 static void do_set_kill(NickInfo *ni, char *param);
+static void do_set_private(NickInfo *ni, char *param);
 static void do_set_secure(NickInfo *ni, char *param);
 static void do_set_ircop(NickInfo *ni, char *param);
 static void do_access(const char *source);
-#if FILE_VERSION > 3
+#if (FILE_VERSION > 3) && defined(MEMOS)
     static void do_ignore(const char *source);
     int is_on_ignore(const char *source, char *target);
 #endif
@@ -65,6 +72,8 @@ static void do_release(const char *source);
 static void do_ghost(const char *source);
 static void do_getpass(const char *source);
 static void do_forbid(const char *source);
+static void do_suspend(const char *source);
+static void do_unsuspend(const char *source);
 
 /*************************************************************************/
 
@@ -81,6 +90,7 @@ void listnicks(int count_only, const char *nick)
     long count = 0;
     NickInfo *ni;
     int i;
+    time_t curtime = time(NULL);
 
     if (count_only) {
 
@@ -103,7 +113,16 @@ void listnicks(int count_only, const char *nick)
 	    return;
 	}
 	printf("%s is %s\n", nick, ni->last_realname);
-	printf("Last seen address: %s\n", ni->last_usermask);
+#if FILE_VERSION > 2
+	if(strlen(ni->email)>0)
+		printf("   E-Mail address: %s\n", ni->email);
+	if(strlen(ni->url)>0)
+		printf("   WWW Page (URL): %s\n", ni->url);
+#endif
+        if (ni->flags & NI_SUSPENDED)
+		printf("    Suspended For: %s\n", ni->last_usermask);
+	else
+		printf("Last seen address: %s\n", ni->last_usermask);
 	tm = *localtime(&ni->time_registered);
 	printf("  Time registered: %s %2d %02d:%02d:%02d %d\n",
 			month_name(tm.tm_mon+1), tm.tm_mday, tm.tm_hour,
@@ -112,7 +131,14 @@ void listnicks(int count_only, const char *nick)
 	printf("   Last seen time: %s %2d %02d:%02d:%02d %d\n",
 			month_name(tm.tm_mon+1), tm.tm_mday, tm.tm_hour,
 			tm.tm_min, tm.tm_sec, tm.tm_year+1900);
+        tm = *localtime(&curtime);
+	printf("     Current time: %s %2d %02d:%02d:%02d %d\n",
+			month_name(tm.tm_mon+1), tm.tm_mday, tm.tm_hour,
+			tm.tm_min, tm.tm_sec, tm.tm_year+1900);
 	*buf = 0;
+        if (ni->flags & NI_SUSPENDED)
+	    strcat(buf, "\2SUSPENDED USER\2");
+	else {
 	if (ni->flags & NI_KILLPROTECT)
 	    strcat(buf, "Kill protection");
 	if (ni->flags & NI_SECURE) {
@@ -120,15 +146,35 @@ void listnicks(int count_only, const char *nick)
 		strcat(buf, ", ");
 	    strcat(buf, "Security");
 	}
+	if (ni->flags & NI_PRIVATE) {
+	    if (*buf)
+		strcat(buf, ", ");
+	    strcat(buf, "Private");
+	}
+	if (ni->flags & NI_IRCOP) {
+	    if (*buf)
+		strcat(buf, ", ");
+	    strcat(buf, "IRC Operator");
+	}
 	if (!*buf)
 	    strcpy(buf, "None");
+	}
 	printf("          Options: %s\n", buf);
+#if (FILE_VERSION > 3) && defined(MEMOS)
+        if (ni->flags & NI_SUSPENDED)
+	    printf("NOTE: Cannot send memos to a suspended user.\n");
+#endif
+	if (finduser(nick))
+	    printf("User is currently online.\n");
 
     } else {
 
 	for (i = 33; i < 256; ++i) {
 	    for (ni = nicklists[i]; ni; ni = ni->next) {
-		printf("    %-20s  %s\n", ni->nick, ni->last_usermask);
+		printf("    %-20s  %s\n", ni->nick,
+			  ni->flags & CI_VERBOTEN  ? "Disallowed (FORBID)"
+			: ni->flags & CI_SUSPENDED ? "Disallowed (SUSPEND)"
+						: ni->last_usermask);
 		++count;
 	    }
 	}
@@ -215,7 +261,7 @@ void nickserv(const char *source, char *buf)
     } else if (stricmp(cmd, "ACCESS") == 0) {
 	do_access(source);
 
-#if FILE_VERSION > 3
+#if (FILE_VERSION > 3) && defined(MEMOS)
     } else if (stricmp(cmd, "IGNORE") == 0) {
 	do_ignore(source);
 #endif
@@ -245,6 +291,12 @@ void nickserv(const char *source, char *buf)
 
     } else if (stricmp(cmd, "FORBID") == 0) {
 	do_forbid(source);
+
+    } else if (stricmp(cmd, "SUSPEND") == 0) {
+	do_suspend(source);
+
+    } else if (stricmp(cmd, "UNSUSPEND") == 0) {
+	do_unsuspend(source);
 
     } else {
 	notice(s_NickServ, source,
@@ -442,10 +494,12 @@ int validate_user(User *u)
     if (!(ni->flags & NI_SECURE) && on_access) {
 	ni->flags |= NI_RECOGNIZED;
 	ni->last_seen = time(NULL);
-	if (ni->last_usermask)
-	    free(ni->last_usermask);
-	ni->last_usermask = smalloc(strlen(u->username)+strlen(u->host)+2);
-	sprintf(ni->last_usermask, "%s@%s", u->username, u->host);
+        if (!(ni->flags & NI_SUSPENDED)) {
+	    if (ni->last_usermask)
+		free(ni->last_usermask);
+	    ni->last_usermask = smalloc(strlen(u->username)+strlen(u->host)+2);
+	    sprintf(ni->last_usermask, "%s@%s", u->username, u->host);
+	}
 	if (ni->last_realname)
 	    free(ni->last_realname);
 	ni->last_realname = sstrdup(u->realname);
@@ -613,7 +667,7 @@ static int is_on_access(User *u, NickInfo *ni)
 /* Is the given user's nick on the given nick's ignore list?  Return 1
  * if so, 0 if not. */
 
-#if FILE_VERSION > 3
+#if (FILE_VERSION > 3) && defined(MEMOS)
 int is_on_ignore(const char *source, char *target)
 {
     int i;
@@ -621,6 +675,8 @@ int is_on_ignore(const char *source, char *target)
     char **ignore;
     
     if (ni = findnick(target)) {
+        if (ni->flags & NI_SUSPENDED)
+        	return 1;
 	for (ignore = ni->ignore, i = 0; i < ni->ignorecount; ++ignore, ++i) {
 	    if (stricmp(*ignore,source)==0)
 		return 1;
@@ -679,6 +735,15 @@ static int delnick(NickInfo *ni)
 {
     int i;
 
+#ifdef MEMOS
+    MemoList *ml;
+    if (ml = find_memolist(ni->nick)) {
+	for (i = 0; i < ml->n_memos; ++i)
+	    free(ml->memos[i].text);
+	ml->n_memos = 0;
+    }
+#endif /* MEMOS */
+
     if (ni->next)
 	ni->next->prev = ni->prev;
     if (ni->prev)
@@ -700,7 +765,7 @@ static int delnick(NickInfo *ni)
 	    free(ni->access[i]);
 	free(ni->access);
     }
-#if FILE_VERSION > 3
+#if (FILE_VERSION > 3) && defined(MEMOS)
     if (ni->ignore) {
 	for (i = 0; i < ni->ignorecount; ++i)
 	    free(ni->ignore[i]);
@@ -846,6 +911,12 @@ static void do_help(const char *source)
 	} else if (stricmp(cmd, "FORBID") == 0) {
 	    notice_list(s_NickServ, source, forbid_help);
 	    return;
+	} else if (stricmp(cmd, "SUSPEND") == 0) {
+	    notice_list(s_NickServ, source, suspend_help);
+	    return;
+	} else if (stricmp(cmd, "UNSUSPEND") == 0) {
+	    notice_list(s_NickServ, source, unsuspend_help);
+	    return;
 	} else if (stricmp(cmd, "SET IRCOP") == 0) {
 	    notice_list(s_NickServ, source, set_ircop_help);
 	    return;
@@ -971,6 +1042,11 @@ static void do_identify(const char *source)
 	log("%s: IDENTIFY from nonexistent nick %s", s_NickServ, source);
 	notice(s_NickServ, source, "Sorry, identification failed.");
 
+    } else if (ni->flags & NI_SUSPENDED) {
+
+	notice(s_NickServ, source,
+		"Access Denied for SUSPENDED users.");
+
     } else if (strcmp(pass, ni->pass) != 0) {
 
 	log("%s: Failed IDENTIFY for %s!%s@%s",
@@ -982,10 +1058,12 @@ static void do_identify(const char *source)
 	ni->flags |= NI_IDENTIFIED;
 	if (!(ni->flags & NI_RECOGNIZED)) {
 	    ni->last_seen = time(NULL);
-	    if (ni->last_usermask)
-		free(ni->last_usermask);
-	    ni->last_usermask = smalloc(strlen(u->username)+strlen(u->host)+2);
-	    sprintf(ni->last_usermask, "%s@%s", u->username, u->host);
+	    if (!(ni->flags & NI_SUSPENDED)) {
+		if (ni->last_usermask)
+		    free(ni->last_usermask);
+		ni->last_usermask = smalloc(strlen(u->username)+strlen(u->host)+2);
+		sprintf(ni->last_usermask, "%s@%s", u->username, u->host);
+	    }
 	    if (ni->last_realname)
 		free(ni->last_realname);
 	    ni->last_realname = sstrdup(u->realname);
@@ -1031,6 +1109,11 @@ static void do_drop(const char *source)
 	    notice(s_NickServ, source, "Nick %s isn't registered.", nick);
 	else
 	    notice(s_NickServ, source, "Your nick isn't registered.");
+
+    } else if (!is_services_op(source) && (ni->flags & NI_SUSPENDED)) {
+
+	notice(s_NickServ, source,
+		"Access Denied for SUSPENDED users.");
 
     } else if (!nick && (!u || !(ni->flags & NI_IDENTIFIED))) {
 
@@ -1090,6 +1173,11 @@ static void do_set(const char *source)
 
 	notice(s_NickServ, source, "Your nickname is not registered.");
 
+    } else if (ni->flags & NI_SUSPENDED) {
+
+	notice(s_NickServ, source,
+		"Access Denied for SUSPENDED users.");
+
     } else if (!(u = finduser(source)) || !(ni->flags & NI_IDENTIFIED)) {
 
 	notice(s_NickServ, source,
@@ -1113,6 +1201,10 @@ static void do_set(const char *source)
 
 	do_set_url(ni, param);
 #endif
+
+    } else if (stricmp(cmd, "PRIVATE") == 0) {
+
+	do_set_private(ni, param);
 
     } else if (stricmp(cmd, "KILL") == 0) {
 
@@ -1189,6 +1281,28 @@ static void do_set_kill(NickInfo *ni, char *param)
 	notice(s_NickServ, source, "Syntax: \2SET KILL {ON|OFF}\2");
 	notice(s_NickServ, source,
 		"\2/msg %s HELP SET KILL\2 for more information.", s_NickServ);
+    }
+}
+
+static void do_set_private(NickInfo *ni, char *param)
+{
+    char *source = ni->nick;
+
+    if (stricmp(param, "ON") == 0) {
+
+	ni->flags |= NI_PRIVATE;
+	notice(s_NickServ, source, "Privacy mode is now \2ON\2.");
+
+    } else if (stricmp(param, "OFF") == 0) {
+
+	ni->flags &= ~NI_PRIVATE;
+	notice(s_NickServ, source, "Privacy mode is now \2OFF\2.");
+
+    } else {
+
+	notice(s_NickServ, source, "Syntax: \2SET PRIVATE {ON|OFF}\2");
+	notice(s_NickServ, source,
+		"\2/msg %s HELP SET PRIVATE\2 for more information.", s_NickServ);
     }
 }
 
@@ -1271,6 +1385,11 @@ static void do_access(const char *source)
 
 	notice(s_NickServ, source, "Your nick isn't registered.");
 
+    } else if (ni->flags & NI_SUSPENDED) {
+
+	notice(s_NickServ, source,
+		"Access Denied for SUSPENDED users.");
+
     } else if (!(u = finduser(source)) || !(ni->flags & NI_IDENTIFIED)) {
 
 	notice(s_NickServ, source,
@@ -1349,7 +1468,7 @@ static void do_access(const char *source)
 
 /*************************************************************************/
 
-#if FILE_VERSION > 3
+#if (FILE_VERSION > 3) && defined(MEMOS)
 static void do_ignore(const char *source)
 {
     char *cmd = strtok(NULL, " ");
@@ -1369,6 +1488,11 @@ static void do_ignore(const char *source)
     } else if (!ni) {
 
 	notice(s_NickServ, source, "Your nick isn't registered.");
+
+    } else if (ni->flags & NI_SUSPENDED) {
+
+	notice(s_NickServ, source,
+		"Access Denied for SUSPENDED users.");
 
     } else if (!(u = finduser(source)) || !(ni->flags & NI_IDENTIFIED)) {
 
@@ -1490,14 +1614,20 @@ static void do_info(const char *source)
 	notice(s_NickServ, source,
 		"%s is %s\n", nick, ni->last_realname);
 #if FILE_VERSION > 2
+        if (!ni->flags & NI_SUSPENDED) {
 	if(strlen(ni->email)>0)
 		notice(s_NickServ, source,
 			"   E-Mail address: %s\n", ni->email);
 	if(strlen(ni->url)>0)
 		notice(s_NickServ, source,
 			"   WWW Page (URL): %s\n", ni->url);
+	}
 #endif
-	notice(s_NickServ, source,
+        if (ni->flags & NI_SUSPENDED)
+	    notice(s_NickServ, source,
+		"    Suspended For: %s\n", ni->last_usermask);
+	else
+	    notice(s_NickServ, source,
 		"Last seen address: %s\n", ni->last_usermask);
 	tm = *localtime(&ni->time_registered);
 	notice(s_NickServ, source,
@@ -1515,12 +1645,20 @@ static void do_info(const char *source)
 			month_name(tm.tm_mon+1), tm.tm_mday, tm.tm_hour,
 			tm.tm_min, tm.tm_sec, tm.tm_year+1900);
 	*buf = 0;
+        if (ni->flags & NI_SUSPENDED)
+	    strcat(buf, "\2SUSPENDED USER\2");
+	else {
 	if (ni->flags & NI_KILLPROTECT)
 	    strcat(buf, "Kill protection");
 	if (ni->flags & NI_SECURE) {
 	    if (*buf)
 		strcat(buf, ", ");
 	    strcat(buf, "Security");
+	}
+	if (ni->flags & NI_PRIVATE) {
+	    if (*buf)
+		strcat(buf, ", ");
+	    strcat(buf, "Private");
 	}
 	if (ni->flags & NI_IRCOP) {
 	    if (*buf)
@@ -1529,11 +1667,16 @@ static void do_info(const char *source)
 	}
 	if (!*buf)
 	    strcpy(buf, "None");
+	}
 	notice(s_NickServ, source, "          Options: %s", buf);
-#if FILE_VERSION > 3
+#if (FILE_VERSION > 3) && defined(MEMOS)
+        if (ni->flags & NI_SUSPENDED)
+	    notice(s_NickServ, source, "NOTE: Cannot send memos to a suspended user.");
+	else
 	if (is_on_ignore(source,nick))
 	    notice(s_NickServ, source, "NOTE: This user is ignoring your memos.");
 #endif
+        if (!ni->flags & NI_SUSPENDED)
 	if (finduser(nick))
 	    notice(s_NickServ, source, "This user is online, type \2/whois %s\2 for more information.", nick);
     }
@@ -1562,10 +1705,10 @@ static void do_list(const char *source)
 	for (i = 33; i < 256; ++i) {
 	    for (ni = nicklists[i]; ni; ni = ni->next) {
 		if (!(is_oper(source))) {
-		    if (ni->flags & NI_VERBOTEN)
+		    if (ni->flags & (NI_PRIVATE | NI_VERBOTEN | NI_SUSPENDED))
 			continue;
 		}
-		if (ni->flags & NI_VERBOTEN) {
+		if (ni->flags & (NI_VERBOTEN | NI_SUSPENDED)) {
 		    if (strlen(ni->nick) > sizeof(buf))
 			continue;
 		} else {
@@ -1574,6 +1717,8 @@ static void do_list(const char *source)
 		}
 		if (ni->flags & NI_VERBOTEN)
 		    sprintf(buf, "%-20s  << FORBIDDEN >>", ni->nick);
+	        else if (!ni->flags & NI_SUSPENDED)
+		    sprintf(buf, "%-20s  << SUSPENDED >>", ni->nick);
 		else
 		    sprintf(buf, "%-20s  %s", ni->nick, ni->last_usermask);
 		if (match_wild(pattern, buf)) {
@@ -1797,4 +1942,62 @@ static void do_forbid(const char *source)
 
 /*************************************************************************/
 
+static void do_suspend(const char *source)
+{
+    NickInfo *ni;
+    char *nick = strtok(NULL, " ");
+    char *reason = strtok(NULL, "");
+
+    if (!reason) {
+	notice(s_NickServ, source, "Syntax: \2SUSPEND \37nickname reason\37\2");
+	return;
+    }
+#ifdef READONLY
+    notice(s_NickServ, source,
+	"Warning: Services is in read-only mode; changes will not be saved.");
+#endif
+    if (!(ni = findnick(nick)))
+    notice(s_NickServ, source,
+	"Nick %s does not exist", nick);
+    else {
+	ni->flags |= NI_SUSPENDED;
+	ni->flags &= ~NI_IDENTIFIED;
+	if (ni->last_usermask)
+	    free(ni->last_usermask);
+	ni->last_usermask = smalloc(strlen(reason)+2);
+	sprintf(ni->last_usermask, "%s", reason);
+	log("%s: %s set SUSPEND for nick %s because of %s", s_NickServ, source, nick, reason);
+	notice(s_NickServ, source, "Nick \2%s\2 is now SUSPENDED.", nick);
+    }
+}
+
+static void do_unsuspend(const char *source)
+{
+    NickInfo *ni;
+    char *nick = strtok(NULL, " ");
+
+    if (!nick) {
+	notice(s_NickServ, source, "Syntax: \2UNSUSPEND \37nickname\37\2");
+	return;
+    }
+#ifdef READONLY
+    notice(s_NickServ, source,
+	"Warning: Services is in read-only mode; changes will not be saved.");
+#endif
+    if (!(ni = findnick(nick)))
+    notice(s_NickServ, source,
+	"Nick %s does not exist", nick);
+    else {
+	ni->flags &= ~NI_SUSPENDED;
+	if (ni->last_usermask)
+	    free(ni->last_usermask);
+	ni->last_usermask = NULL;
+	log("%s: %s removed SUSPEND for nick %s", s_NickServ, source, nick);
+	notice(s_NickServ, source, "Nick \2%s\2 is now UNSUSPENDED.", nick);
+    }
+}
+
+/*************************************************************************/
+
 #endif	/* !SKELETON */
+#endif  /* NICKSERV */

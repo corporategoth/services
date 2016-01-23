@@ -53,12 +53,14 @@ static void change_user_nick(User *user, const char *nick)
 static void delete_user(User *user)
 {
     struct u_chanlist *c, *c2;
+#ifdef CHANSERV
     struct u_chaninfolist *ci, *ci2;
+#endif
 
     usercnt--;
     if (user->mode & UMODE_O)
 	opcnt--;
-#ifndef SKELETON
+#ifdef NICKSERV
     cancel_user(user);
 #endif
     free(user->username);
@@ -72,12 +74,14 @@ static void delete_user(User *user)
 	free(c);
 	c = c2;
     }
+#ifdef CHANSERV
     ci = user->founder_chans;
     while (ci) {
 	ci2 = ci->next;
 	free(ci);
 	ci = ci2;
     }
+#endif
     if (user->prev)
 	user->prev->next = user->next;
     else
@@ -97,7 +101,9 @@ void get_user_stats(long *nusers, long *memuse)
     long count = 0, mem = 0;
     User *user;
     struct u_chanlist *uc;
+#ifdef CHANSERV
     struct u_chaninfolist *uci;
+#endif
 
     for (user = userlist; user; user = user->next) {
 	count++;
@@ -112,8 +118,10 @@ void get_user_stats(long *nusers, long *memuse)
 	    mem += strlen(user->server)+1;
 	for (uc = user->chans; uc; uc = uc->next)
 	    mem += sizeof(*uc);
+#ifdef CHANSERV
 	for (uci = user->founder_chans; uci; uci = uci->next)
 	    mem += sizeof(*uci);
+#endif
     }
     *nusers = count;
     *memuse = mem;
@@ -123,6 +131,7 @@ void get_user_stats(long *nusers, long *memuse)
 
 /* Send the current list of users to the named user. */
 
+#ifdef OPERSERV
 void send_user_list(const char *source)
 {
     User *u = userlist;
@@ -141,14 +150,17 @@ void send_user_list(const char *source)
 	for (c = u->chans; c; c = c->next)
 	    s += sprintf(s, " %s", c->chan->name);
 	notice(s_OperServ, source, "%s%s", u->nick, buf);
+#ifdef CHANSERV
 	buf[0] = 0;
 	s = buf;
 	for (ci = u->founder_chans; ci; ci = ci->next)
 	    s += sprintf(s, " %s", ci->chan->name);
+#endif
 	notice(s_OperServ, source, "%s%s", u->nick, buf);
 	u = u->next;
     }
 }
+#endif
 
 /*************************************************************************/
 
@@ -188,7 +200,7 @@ void do_nick(const char *source, int ac, char **av)
 
     if (!*source) {
 	/* This is a new user; create a User structure for it. */
-#ifdef GLOBALNOTICER_ON
+#ifdef GLOBALNOTICER
 	FILE *f;
 	char buf[BUFSIZE];
 #endif
@@ -201,9 +213,11 @@ void do_nick(const char *source, int ac, char **av)
 	if (av[3][0] == '~')
 	    ++av[3];
 
+#ifdef AKILL
 	/* First check for AKILLs. */
 	if (check_akill(av[0], av[3], av[4]))
 	    return;
+#endif
 
 	/* Allocate User structure and fill it in. */
 	user = new_user(av[0]);
@@ -218,9 +232,11 @@ void do_nick(const char *source, int ac, char **av)
 #endif
 
 	/* Check to see if it looks like clones. */
+#ifdef CLONES
 	check_clones(user);
+#endif
 
-#ifdef GLOBALNOTICER_ON
+#ifdef GLOBALNOTICER
 	/* Send global message to user when they log on */
 	if (f = fopen(LOGON_MSG, "r")) {
 	    while (fgets(buf, sizeof(buf), f)) {
@@ -242,7 +258,7 @@ void do_nick(const char *source, int ac, char **av)
 	}
 	if (debug)
 	    log("debug: %s changes nick to %s", source, av[0]);
-#ifndef SKELETON
+#ifdef NICKSERV
 	cancel_user(user);
 #endif
 	change_user_nick(user, av[0]);
@@ -252,9 +268,14 @@ void do_nick(const char *source, int ac, char **av)
 
     user->my_signon = time(NULL);
 
-#ifndef SKELETON
+#ifdef NICKSERV
+# ifdef DAL_SERV
+    send_cmd(s_NickServ, "SVSMODE %s -r", user->nick);
+# endif
+# ifdef MEMOS
     if (validate_user(user))
 	check_memos(user->nick);
+# endif
 #endif
 }
 
@@ -281,7 +302,7 @@ void do_join(const char *source, int ac, char **av)
 	t = s + strcspn(s, ",");
 	if (*t)
 	    *t++ = 0;
-#ifndef SKELETON
+#ifdef CHANSERV
 	if (check_kick(user, s))
 	    continue;
 #endif
@@ -296,7 +317,9 @@ void do_join(const char *source, int ac, char **av)
 	user->chans = c;
 	c->chan = findchan(s);
     }
+#ifdef NEWS
     check_newss(av[0], source);
+#endif
 }
 
 /*************************************************************************/
@@ -395,7 +418,7 @@ void do_umode(const char *source, int ac, char **av)
     char *s;
     int add = 1;		/* 1 if adding modes, 0 if deleting */
 
-#ifdef GLOBALNOTICER_ON
+#ifdef GLOBALNOTICER
     FILE *f;
     char buf[BUFSIZE];
 #endif
@@ -426,12 +449,12 @@ void do_umode(const char *source, int ac, char **av)
 		if (add) {
 		    user->mode |= UMODE_O;
 		    ++opcnt;
-#ifdef GLOBALNOTICER_ON
+#ifdef GLOBALNOTICER
 		    /* Send global message to user when they oper up */
 		    if (f = fopen(OPER_MSG, "r")) {
 			while (fgets(buf, sizeof(buf), f)) {
 			    buf[strlen(buf)-1] = 0;
-			    notice(s_GlobalNoticer, av[0], "%s", buf ? buf : " ");
+			    notice(s_GlobalNoticer, source, "\37[\37\2OPER\2\37]\37 %s", buf ? buf : " ");
 			}
 			fclose(f);
 		    }

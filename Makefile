@@ -3,7 +3,7 @@
 
 include Makefile.inc
 
-VERSION = 3.0.5
+VERSION = 3.0.6
 
 ########################## Configuration section ##########################
 

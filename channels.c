@@ -48,6 +48,7 @@ void get_channel_stats(long *nrec, long *memuse)
 
 /* Send the current list of channels to the named user. */
 
+#ifdef OPERSERV
 void send_channel_list(const char *user)
 {
     Channel *c = chanlist;
@@ -115,6 +116,7 @@ void send_channel_users(const char *user, const char *chan)
     for (u = c->voices; u; u = u->next)
 	notice(s_OperServ, user, "%s", u->user->nick);
 }
+#endif
 
 /*************************************************************************/
 
@@ -153,12 +155,12 @@ void chan_adduser(User *user, const char *chan)
 	chanlist = c;
 	strscpy(c->name, chan, sizeof(c->name));
 	c->creation_time = time(NULL);
-#ifndef SKELETON
+#ifdef CHANSERV
 	check_modes(chan);
 	restore_topic(chan);
 #endif
     }
-#ifndef SKELETON
+#ifdef CHANSERV
     if (check_should_op(user, chan)) {
 	u = smalloc(sizeof(struct c_userlist));
 	u->next = c->chanops;
@@ -394,7 +396,7 @@ void do_cmode(const char *source, int ac, char **av)
 		}
 		if (debug)
 		    log("debug: Setting +o on %s for %s", chan->name, nick);
-#ifndef SKELETON
+#ifdef CHANSERV
 		if (!check_valid_op(user, chan->name, !!strchr(source, '.')))
 		    break;
 #endif
@@ -469,7 +471,7 @@ void do_cmode(const char *source, int ac, char **av)
 
     } /* while (*s) */
 
-#ifndef SKELETON
+#ifdef CHANSERV
     /* Check modes against ChanServ mode lock */
     check_modes(chan->name);
 #endif
@@ -488,7 +490,7 @@ void do_topic(const char *source, int ac, char **av)
 						merge_args(ac-1, av+1), av[0]);
 	return;
     }
-#ifndef SKELETON
+#ifdef CHANSERV
     if (check_topiclock(av[0]))
 	return;
 #endif
@@ -500,7 +502,7 @@ void do_topic(const char *source, int ac, char **av)
     }
     if (ac > 3 && *av[3])
 	c->topic = sstrdup(av[3]);
-#ifndef SKELETON
+#ifdef CHANSERV
     record_topic(av[0]);
 #endif
 }

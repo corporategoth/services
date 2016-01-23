@@ -42,7 +42,50 @@
 #define toupper toupper_
 extern int toupper(char), tolower(char);
 
+/* These should be read by config.h */
+#undef	NICKSERV
+#undef	CHANSERV
+#undef	IRCOP_OVERRIDE
+#undef	HELPSERV
+#undef	IRCIIHELP
+#undef	MEMOSERV
+#undef	MEMOS
+#undef	NEWS
+#undef	DEVNULL
+#undef	OPERSERV
+#undef	AKILL
+#undef	CLONES
+#undef	GLOBALNOTICER
+
 #include "config.h"
+
+/* Satisfy dependancies */
+#ifdef SKELETON
+#  undef NICKSERV
+#  undef HELPSERV
+#  undef IRCIIHELP
+#  undef MEMOSERV
+#  undef DEVNULL
+#endif
+#ifndef NICKSERV
+#  undef CHANSERV
+#  undef MEMOSERV
+#endif
+#ifndef CHANSERV
+#  undef NEWS
+#  undef IRCOP_OVERRIDE
+#endif
+#ifndef MEMOSERV
+#  undef NEWS
+#  undef MEMOS
+#endif
+#if !defined(MEMOS) && !defined(NEWS)
+#  undef MEMOSERV
+#endif
+#ifndef OPERSERV
+#  undef AKILL
+#  undef CLONES
+#endif
 
 /*************************************************************************/
 
@@ -54,7 +97,14 @@ extern int toupper(char), tolower(char);
  *          4  - Added IGNORE (memo reject)
  */
 
-#define FILE_VERSION	4
+/* If your not using MEMOS, its no use being on FILE_VERSION 4.  Change
+   Below if you want to override (but why would you?). */
+
+#ifdef MEMOS
+# define FILE_VERSION	4
+#else
+# define FILE_VERSION	3
+#endif
 
 /*************************************************************************/
 
@@ -62,6 +112,7 @@ extern int toupper(char), tolower(char);
  * lists; the list is determined by the first character of the nick.  Nicks
  * are stored in alphabetical order within lists. */
 
+#ifdef NICKSERV
 typedef struct nickinfo_ NickInfo;
 struct nickinfo_ {
     NickInfo *next, *prev;
@@ -89,10 +140,13 @@ struct nickinfo_ {
 #define NI_SECURE	0x00000002  /* Don't recognize unless IDENTIFY'd */
 #define NI_VERBOTEN	0x00000004  /* Nick may not be registered or used */
 #define NI_IRCOP	0x00000008  /* IrcOP - Nick will not expire */
+#define NI_PRIVATE	0x00000010  /* Private - Dont show up in list */
+#define NI_SUSPENDED	0x00000020  /* Suspended - May not IDENTIFY */
 
 #define NI_IDENTIFIED	0x80000000  /* User has IDENTIFY'd */
 #define NI_RECOGNIZED	0x40000000  /* User comes from a known addy */
 #define NI_KILL_HELD	0x20000000  /* Nick is being held after a kill */
+#endif /* NICKSERV */
 
 /*************************************************************************/
 
@@ -101,6 +155,7 @@ struct nickinfo_ {
  * determine the list.  (Hashing based on the first character of the name
  * wouldn't get very far. ;) ) */
 
+#ifdef CHANSERV
 /* Access levels for users. */
 typedef struct {
     short level;
@@ -162,6 +217,8 @@ struct chaninfo_ {
 #define CI_SECURE	0x00000040
 /* Don't allow the channel to be registered or used */
 #define CI_VERBOTEN	0x00000080
+/* Dont honour channel access list or founder */
+#define CI_SUSPENDED	0x00000100
 
 /* Indices for cmd_access[]: */
 #define CA_INVITE	0
@@ -173,12 +230,14 @@ struct chaninfo_ {
 #define CA_OPDEOP	6	/* ChanServ commands OP and DEOP */
 
 #define CA_SIZE		7
+#endif
 
 /*************************************************************************/
 
 /* MemoServ data.  Only nicks that actually have memos get records in
  * MemoServ's lists, which are stored the same way NickServ's are. */
 
+#if defined(MEMOSERV) && defined(NICKSERV)
 typedef struct memo_ Memo;
 
 struct memo_ {
@@ -190,9 +249,14 @@ struct memo_ {
 };
 
 
+#ifdef MEMOS
 typedef struct memolist_ MemoList;
+#endif
+#if defined(CHANSERV) && defined(NEWS)
 typedef struct newslist_ NewsList;
+#endif
 
+#ifdef MEMOS
 struct memolist_ {
     MemoList *next, *prev;
     char nick[NICKMAX];	/* Owner of the memos */
@@ -200,7 +264,9 @@ struct memolist_ {
     Memo *memos;	/* The memos themselves */
     long reserved[4];	/* For future expansion -- set to 0 */
 };
+#endif
 
+#if defined(CHANSERV) && defined(NEWS)
 struct newslist_ {
     NewsList *next, *prev;
     char chan[CHANMAX];	/* Owner of the memos */
@@ -208,6 +274,8 @@ struct newslist_ {
     Memo *newss;	/* The memos themselves */
     long reserved[4];	/* For future expansion -- set to 0 */
 };
+#endif 
+#endif /* MEMOSERV && NICKSERV */
 
 /*************************************************************************/
 
@@ -230,10 +298,12 @@ struct user_ {
 	struct u_chanlist *next, *prev;
 	Channel *chan;
     } *chans;				/* channels user has joined */
+#ifdef CHANSERV
     struct u_chaninfolist {
 	struct u_chaninfolist *next, *prev;
 	ChannelInfo *chan;
     } *founder_chans;			/* channels user has identified for */
+#endif
 };
 
 #define UMODE_O 0x0001

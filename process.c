@@ -14,7 +14,7 @@
 /* Use ignore code? */
 
 int allow_ignore = 1;
-
+extern int mode;
 
 /* People to ignore (hashed by first character of nick). */
 
@@ -188,17 +188,17 @@ void process()
 #endif
 
     } else if (stricmp(cmd, "AWAY") == 0) {
-#ifdef GLOBALNOTICER_ON
+#ifdef GLOBALNOTICER
 	FILE *f;
 	char buf[BUFSIZE];
 #endif
 
 	if (ac == 0 || *av[0] == 0) {	/* un-away */
-#ifndef SKELETON
+#ifdef MEMOS
 	    check_memos(source);
 #endif
 
-#ifdef GLOBALNOTICER_ON
+#ifdef GLOBALNOTICER
 	    /* Send global message to user when they set back */
 	    if (f = fopen(LOGON_MSG, "r")) {
 		while (fgets(buf, sizeof(buf), f)) {
@@ -212,7 +212,7 @@ void process()
 		if (f = fopen(OPER_MSG, "r")) {
 		    while (fgets(buf, sizeof(buf), f)) {
 			buf[strlen(buf)-1] = 0;
-			notice(s_GlobalNoticer, source, "%s", buf ? buf : " ");
+			notice(s_GlobalNoticer, source, "\37[\37\2OPER\2\37]\37 %s", buf ? buf : " ");
 		    }
 		    fclose(f);
 		}
@@ -244,15 +244,32 @@ void process()
 	if (ac != 2)
 	    return;
 	do_kill(source, ac, av);
-    if (stricmp(av[0], s_NickServ) == 0 ||
-        stricmp(av[0], s_ChanServ) == 0 ||
-        stricmp(av[0], s_HelpServ) == 0 ||
-        stricmp(av[0], "IrcIIHelp") == 0 ||
-        stricmp(av[0], s_MemoServ) == 0 ||
-        stricmp(av[0], s_OperServ) == 0 ||
-        stricmp(av[0], "DevNull") == 0 ||
-        stricmp(av[0], s_GlobalNoticer) == 0)
-        introduce_user(av[0]);
+    if (
+#ifdef NICKSERV
+	stricmp(av[0], s_NickServ) == 0 ||
+#endif
+#ifdef CHANSERV
+	stricmp(av[0], s_ChanServ) == 0 ||
+#endif
+#ifdef HELPSERV
+	stricmp(av[0], s_HelpServ) == 0 ||
+#endif
+#ifdef IRCIIHELP
+	stricmp(av[0], "IrcIIHelp") == 0 ||
+#endif
+#ifdef MEMOSERV
+	stricmp(av[0], s_MemoServ) == 0 ||
+#endif
+#ifdef OPERSERV 
+	stricmp(av[0], s_OperServ) == 0 ||
+#endif
+#ifdef DEVNULL
+	stricmp(av[0], "DevNull") == 0 ||
+#endif
+#ifdef GLOBALNOTICER
+	stricmp(av[0], s_GlobalNoticer) == 0 ||
+#endif
+	0) introduce_user(av[0]);
 
     } else if (stricmp(cmd, "MODE") == 0) {
 
@@ -335,45 +352,77 @@ void process()
 
 	starttime = time(NULL);
 
+#ifdef OPERSERV
 	if (stricmp(av[0], s_OperServ) == 0) {
 	    if (is_oper(source))
 		operserv(source, av[1]);
 	    else
 		notice(s_OperServ, source, "Access denied.");
-	} else if (stricmp(av[0], s_NickServ) == 0) {
+	    if (mode==0) return;
+	} else if(mode!=0) {
+#endif
+#ifdef NICKSERV
+	if (stricmp(av[0], s_NickServ) == 0)
 	    nickserv(source, av[1]);
-	} else if (stricmp(av[0], s_ChanServ) == 0) {
+#endif
+#ifdef CHANSERV
+	if (stricmp(av[0], s_ChanServ) == 0)
 	    chanserv(source, av[1]);
-	} else if (stricmp(av[0], s_MemoServ) == 0) {
+#endif
+#ifdef MEMOSERV
+	if (stricmp(av[0], s_MemoServ) == 0)
 	    memoserv(source, av[1]);
-	} else if (stricmp(av[0], s_HelpServ) == 0) {
+#endif
+#ifdef HELPSERV
+	if (stricmp(av[0], s_HelpServ) == 0)
 	    helpserv(s_HelpServ, source, av[1]);
-	} else if (stricmp(av[0], "ircIIhelp") == 0) {
+#endif
+#ifdef IRCIIHELP
+	if (stricmp(av[0], "ircIIhelp") == 0) {
 	    char *s = smalloc(strlen(av[1]) + 7);
 	    sprintf(s, "ircII %s", av[1]);
 	    helpserv("IrcIIHelp", source, s);
 	    free(s);
 	}
+#endif
+#ifdef OPERSERV
+	} else {
+	    notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
+	    return;
+	}
+#endif
 #ifdef DAL_SERV
+#ifdef OPERSERV
 	sprintf(buf, "%s@%s", s_OperServ, SERVER_NAME);
 	if (stricmp(av[0], buf) == 0) {
 	    if (is_oper(source))
 		operserv(source, av[1]);
 	    else
 		notice(s_OperServ, source, "Access denied.");
-	}
+	    if (mode==0) return;
+	} else if (mode!=0) {
+#endif
+#ifdef NICKSERV
 	sprintf(buf, "%s@%s", s_NickServ, SERVER_NAME);
 	if (stricmp(av[0], buf) == 0)
 	    nickserv(source, av[1]);
+#endif
+#ifdef CHANSERV
 	sprintf(buf, "%s@%s", s_ChanServ, SERVER_NAME);
 	if (stricmp(av[0], buf) == 0)
 	    chanserv(source, av[1]);
+#endif
+#ifdef MEMOSERV
 	sprintf(buf, "%s@%s", s_MemoServ, SERVER_NAME);
 	if (stricmp(av[0], buf) == 0)
 	    memoserv(source, av[1]);
+#endif
+#ifdef HELPSERV
 	sprintf(buf, "%s@%s", s_HelpServ, SERVER_NAME);
 	if (stricmp(av[0], buf) == 0)
 	    helpserv(s_HelpServ, source, av[1]);
+#endif
+#ifdef IRCIIHELP
 	sprintf(buf, "%s@%s", "ircIIhelp", SERVER_NAME);
 	if (stricmp(av[0], buf) == 0) {
 	    char *s = smalloc(strlen(av[1]) + 7);
@@ -381,6 +430,13 @@ void process()
 	    helpserv("IrcIIHelp", source, s);
 	    free(s);
 	}
+#endif
+#ifdef OPERSERV
+	} else {
+	    notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
+	    return;
+	}
+#endif
 #endif
 
 	/*Add to ignore list if the command took a significant amount of time.*/
@@ -395,15 +451,6 @@ void process()
 	if (ac != 1)
 	    return;
 	do_quit(source, ac, av);
-    if (stricmp(av[0], s_NickServ) == 0 ||
-        stricmp(av[0], s_ChanServ) == 0 ||
-        stricmp(av[0], s_HelpServ) == 0 ||
-        stricmp(av[0], "IrcIIHelp") == 0 ||
-        stricmp(av[0], s_MemoServ) == 0 ||
-        stricmp(av[0], s_OperServ) == 0 ||
-        stricmp(av[0], "DevNull") == 0 ||
-        stricmp(av[0], s_GlobalNoticer) == 0)
-        introduce_user(av[0]);
 
     } else if (stricmp(cmd, "SERVER") == 0 || stricmp(cmd, "SQUIT") == 0) {
 
@@ -446,8 +493,69 @@ void process()
     } else if (stricmp(cmd, "VERSION") == 0) {
 
 	if (source)
-	    send_cmd(server_name, "351 %s %s %s (Preston A. Elder) :-- %s",
-			source, version_number, server_name, version_build);
+	    send_cmd(server_name, "351 %s %s %s (%s%s%s%s%s%s%s%s%s%s%s%s) :-- %s",
+			source, version_number, server_name,
+#ifdef NICKSERV
+			"N",
+#else
+			"n",
+#endif
+#ifdef CHANSERV
+			"C",
+#else
+			"c",
+#endif
+#ifdef IRCOP_OVERRIDE
+			"V",
+#else
+			"v",
+#endif
+#ifdef HELPSERV
+			"H",
+#else
+			"h",
+#endif
+#ifdef IRCIIHELP
+			"I",
+#else
+			"i",
+#endif
+#ifdef MEMOS
+			"M",
+#else
+			"m",
+#endif
+#ifdef NEWS
+			"W",
+#else
+			"w",
+#endif
+#ifdef DEVNULL
+			"D",
+#else
+			"d",
+#endif
+#ifdef OPERSERV
+			"O",
+#else
+			"o",
+#endif
+#ifdef AKILL
+			"A",
+#else
+			"a",
+#endif
+#ifdef CLONES
+			"L",
+#else
+			"l",
+#endif
+#ifdef GLOBALNOTICER
+			"G",
+#else
+			"g",
+#endif
+			version_build);
 
     } else {
 

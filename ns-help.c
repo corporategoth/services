@@ -6,6 +6,8 @@
  * details.
  */
 
+#ifdef NICKSERV
+
 /*************************************************************************/
 
 static const char *oper_drop_help[] = {
@@ -45,6 +47,34 @@ NULL
 
 /*************************************************************************/
 
+static const char *suspend_help[] = {
+"Syntax: \2SUSPEND \37nickname reason\37\2",
+"",
+"This stops a user from being able to IDENTIFY to nickserv",
+"By implecation, this also forbids reading MEMOS, DROPing",
+"changing their ACCESS list, changing any of their SET's,",
+"or getting ops on a SECUREOPS channel."
+"This should be used for BRIEF periods of time when a",
+"user needs repremanding,  but not quite a DROP.",
+"Limited to \2Services Admin\2.",
+NULL
+};
+
+/*************************************************************************/
+
+static const char *unsuspend_help[] = {
+"Syntax: \2UNSUSPEND \37nickname reason\37\2",
+"",
+"This reverses the SUSPEND command, giving back full control",
+"to the user.  Everything previously imposed by SUSPEND will",
+" be reversed.  One drawback however is that their last-seen",
+"hostmask will be lost - this is regained next signon tho."
+"Limited to \2Services Admin\2.",
+NULL
+};
+
+/*************************************************************************/
+
 static const char *set_ircop_help[] = {
 "Syntax: \2SET IRCOP {ON|OFF}\2",
 "",
@@ -56,3 +86,4 @@ NULL
 
 /*************************************************************************/
 
+#endif /* NICKSERV */

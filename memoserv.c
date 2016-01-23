@@ -8,25 +8,37 @@
 
 #include "services.h"
 
-static MemoList *memolists[256];	/* One for each initial character */
-static NewsList *newslists[256];	/* One for each initial character */
+#ifdef MEMOSERV
+
+#ifdef MEMOS
+MemoList *memolists[256];	/* One for each initial character */
+#endif
+#ifdef NEWS
+NewsList *newslists[256];	/* One for each initial character */
+#endif
 
 const char s_MemoServ[] = "MemoServ";
 
 #include "ms-help.c"
 
+#ifdef NEWS
 extern ChannelInfo *chanlists[256];
 extern ChannelInfo *cs_findchan(const char *chan);
 extern int get_access(User *user, ChannelInfo *ci);
 extern int def_access[];
+#endif /* NEWS */
 
-static MemoList *find_memolist(const char *nick);
+#ifdef MEMOS
+MemoList *find_memolist(const char *nick);	/* Needed by NICKSERV */
 static void alpha_insert_memolist(MemoList *ml);
 static void del_memolist(MemoList *ml);
+#endif /* MEMOS */
 
-static NewsList *find_newslist(const char *chan);
+#ifdef NEWS
+NewsList *find_newslist(const char *chan);	/* Needed by CHANSERV */
 static void alpha_insert_newslist(NewsList *nl);
 static void del_newslist(NewsList *nl);
+#endif /* NEWS */
 
 static void do_help(const char *source);
 static void do_send(const char *source);
@@ -40,6 +52,7 @@ static void do_del(const char *source);
 
 /* Return information on memory use.  Assumes pointers are valid. */
 
+#ifdef MEMOS
 void get_memoserv_stats(long *nrec, long *memuse)
 {
     long count = 0, mem = 0;
@@ -60,7 +73,9 @@ void get_memoserv_stats(long *nrec, long *memuse)
     *nrec = count;
     *memuse = mem;
 }
+#endif /* MEMOS */
 
+#ifdef NEWS
 void get_newsserv_stats(long *nrec, long *memuse)
 {
     long count = 0, mem = 0;
@@ -81,6 +96,7 @@ void get_newsserv_stats(long *nrec, long *memuse)
     *nrec = count;
     *memuse = mem;
 }
+#endif /* NEWS */
 
 /*************************************************************************/
 /*************************************************************************/
@@ -152,6 +168,7 @@ void memoserv(const char *source, char *buf)
 
 /* load_ms_dbase, save_ms_dbase:  Load/save memo data. */
 
+#ifdef MEMOS
 void load_ms_dbase(void)
 {
     FILE *f = fopen(MEMOSERV_DB, "r");
@@ -222,7 +239,9 @@ void save_ms_dbase(void)
     fclose(f);
     remove(MEMOSERV_DB ".save");
 }
+#endif /* MEMOS */
 
+#ifdef NEWS
 void load_news_dbase(void)
 {
     FILE *f = fopen(NEWSSERV_DB, "r");
@@ -293,6 +312,7 @@ void save_news_dbase(void)
     fclose(f);
     remove(NEWSSERV_DB ".save");
 }
+#endif /* NEWS */
 
 /*************************************************************************/
 
@@ -300,6 +320,7 @@ void save_news_dbase(void)
  *               NOTICE to that nick if so.
  */
 
+#ifdef MEMOS
 void check_memos(const char *nick)
 {
     MemoList *ml;
@@ -313,12 +334,13 @@ void check_memos(const char *nick)
 		ml->n_memos == 1 ? "read it" : "list them");
     }
 }
-
+#endif /* MEMOS */
 
 /* check_newss:  See if the given chan has any waiting newss, and send a
  *               NOTICE to that chan if so.
  */
 
+#ifdef NEWS
 void check_newss(const char *chan, const char *source)
 {
     NewsList *nl;
@@ -337,6 +359,7 @@ void check_newss(const char *chan, const char *source)
 		nl->n_newss == 1 ? "read it" : "list them");
     }
 }
+#endif /* NEWS */
 
 /*************************************************************************/
 /*********************** MemoServ private routines ***********************/
@@ -346,7 +369,8 @@ void check_newss(const char *chan, const char *source)
  *                 none.
  */
 
-static MemoList *find_memolist(const char *nick)
+#ifdef MEMOS
+MemoList *find_memolist(const char *nick)
 {
     MemoList *ml;
     int i;
@@ -361,8 +385,10 @@ static MemoList *find_memolist(const char *nick)
 /* find_newslist:  Find the news list for a given nick.  Return NULL if
  *                 none.
  */
+#endif /* MEMOS */
 
-static NewsList *find_newslist(const char *chan)
+#ifdef NEWS
+NewsList *find_newslist(const char *chan)
 {
     NewsList *nl;
     int i;
@@ -373,6 +399,7 @@ static NewsList *find_newslist(const char *chan)
 	;
     return i==0 ? nl : NULL;
 }
+#endif /* NEWS */
 
 /*************************************************************************/
 
@@ -380,6 +407,7 @@ static NewsList *find_newslist(const char *chan)
  *                         database.
  */
 
+#ifdef MEMOS
 static void alpha_insert_memolist(MemoList *ml)
 {
     MemoList *ml2, *ml3;
@@ -398,11 +426,13 @@ static void alpha_insert_memolist(MemoList *ml)
     if (ml2)
 	ml2->prev = ml;
 }
+#endif /* MEMOS */
 
 /* alpha_insert_newslist:  Insert a news list alphabetically into the
  *                         database.
  */
 
+#ifdef NEWS
 static void alpha_insert_newslist(NewsList *nl)
 {
     NewsList *nl2, *nl3;
@@ -421,7 +451,7 @@ static void alpha_insert_newslist(NewsList *nl)
     if (nl2)
 	nl2->prev = nl;
 }
-
+#endif /* NEWS */
 
 /*************************************************************************/
 
@@ -429,6 +459,7 @@ static void alpha_insert_newslist(NewsList *nl)
  *                that the memo count for the nick is non-zero.
  */
 
+#ifdef MEMOS
 static void del_memolist(MemoList *ml)
 {
     int i;
@@ -442,11 +473,13 @@ static void del_memolist(MemoList *ml)
     free(ml->memos);
     free(ml);
 }
+#endif
 
 /* del_newslist:  Remove a nick's news list from the database.  Assumes
  *                that the news count for the nick is non-zero.
  */
 
+#ifdef NEWS
 static void del_newslist(NewsList *nl)
 {
     int i;
@@ -460,6 +493,7 @@ static void del_newslist(NewsList *nl)
     free(nl->newss);
     free(nl);
 }
+#endif /* NEWS */
 
 /*************************************************************************/
 /*********************** MemoServ command routines ***********************/
@@ -483,19 +517,29 @@ static void do_help(const char *source)
 
 static void do_send(const char *source)
 {
+#ifdef MEMOS
     MemoList *ml;
+#endif
+#ifdef NEWS
     NewsList *nl;
+#endif
     NickInfo *ni;
     Memo *m;
     char *arg = strtok(NULL, " ");
     char *text = strtok(NULL, "");
 
     if (!text) {
+#ifdef NEWS
 	notice(s_MemoServ, source,
 		"Syntax: \2SEND \37nick|channel\37 \37memo-text\37\2");
+#else
+	notice(s_MemoServ, source,
+		"Syntax: \2SEND \37nick\37 \37memo-text\37\2");
+#endif /* NEWS */
 	notice(s_MemoServ, source,
 		"\2/msg %s HELP SEND\2 for more information.", s_MemoServ);
 
+#ifdef NEWS
     } else if (arg[0]=='#') {
 
       ChannelInfo *ci;
@@ -547,6 +591,8 @@ static void do_send(const char *source)
 	}
      }
 
+#endif /* NEWS */
+#ifdef MEMOS
     } else {
 
       if (!(ni = findnick(source))) {
@@ -595,6 +641,7 @@ static void do_send(const char *source)
 			s_MemoServ, m->number);
 	}
       }
+#endif
     }
 }
 
@@ -604,8 +651,12 @@ static void do_send(const char *source)
 
 static void do_list(const char *source)
 {
+#ifdef MEMOS
     MemoList *ml;
+#endif
+#ifdef NEWS
     NewsList *nl;
+#endif
     NickInfo *ni;
     Memo *m;
     int i;
@@ -613,7 +664,8 @@ static void do_list(const char *source)
     char *arg = strtok(NULL, "");
     struct tm tm;
 
-      if(arg && arg[0]=='#') {
+#ifdef NEWS
+    if(arg && arg[0]=='#') {
       ChannelInfo *ci;
       User *u;
 
@@ -642,7 +694,11 @@ static void do_list(const char *source)
 			m->number, m->sender, timebuf, time_zone);
 	}
       }
+#ifdef MEMOS
     } else {
+#endif
+#endif /* NEWS */
+#ifdef MEMOS
       if (!(ni = findnick(source))) {
 	notice(s_MemoServ, source, "Your nick is not registered.  Type"
 			"\2/msg %s HELP\2 for information on registering"
@@ -667,44 +723,73 @@ static void do_list(const char *source)
 			m->number, m->sender, timebuf, time_zone);
 	}
       }
+#endif
+#ifdef NEWS
     }
+#endif /* NEWS */
 }
 
 /*************************************************************************/
 
 /* Read a memo. */
 
+#ifdef STUPID
+static void do_read(const char *whoto)
+#else
 static void do_read(const char *source)
+#endif
 {
+#ifdef MEMOS
     MemoList *ml;
+#endif
+#ifdef NEWS
     NewsList *nl;
+#endif
     NickInfo *ni;
     Memo *m;
+#ifdef NEWS
     char *arg = strtok(NULL, " ");
     char *arg2 = strtok(NULL, "");
+#else
+    char *arg = strtok(NULL, "");
+#endif /* NEWS */
     char *numstr;
     int num;
+#ifdef STUPID
+    char *source = sstrdup(whoto);
+#endif
 
     if (arg) {
+#ifdef NEWS
 	    if (!arg2)
+#endif /* NEWS */
 		strcpy(numstr,arg);
+#ifdef NEWS
 	    else
 		strcpy(numstr,arg2);
+#endif /* NEWS */
     }
     if (!arg) {
 	notice(s_MemoServ, source, "Syntax: \2READ \37num|all\37");
+#ifdef NEWS
 	notice(s_MemoServ, source, "Syntax: \2READ channel \37num|all\37");
+#endif
       notice(s_MemoServ, source,
 		"\2/msg %s HELP READ\2 for more information.", s_MemoServ);
     
     } else if (!numstr || ((num = atoi(numstr)) <= 0 && stricmp(numstr,"ALL") != 0)) {
+#ifdef NEWS
       if(arg[0]!='#')
+#endif /* NEWS */
 	notice(s_MemoServ, source, "Syntax: \2READ \37num|all\37");
+#ifdef NEWS
       else
 	notice(s_MemoServ, source, "Syntax: \2READ channel \37num|all\37");
+#endif /* NEWS */
       notice(s_MemoServ, source,
 		"\2/msg %s HELP READ\2 for more information.", s_MemoServ);
 
+#ifdef NEWS
     } else if (arg[0]=='#') {
 
     ChannelInfo *ci;
@@ -750,6 +835,8 @@ static void do_read(const char *source)
 	}
 
       }
+#endif /* NEWS */
+#ifdef MEMOS
     } else {
       if (!(ni = findnick(source))) {
 	notice(s_MemoServ, source, "Your nick is not registered.  Type"
@@ -796,45 +883,77 @@ static void do_read(const char *source)
 		"To delete, type: \2/msg %s DEL ALL\2", s_MemoServ);
 	}
       }
+#endif
     }
+#ifdef STUPID
+    free(source);
+#endif
 }
 
 /* Forward a memo. */
 
+#ifdef STUPID
+static void do_forward(const char *whoto)
+#else
 static void do_forward(const char *source)
+#endif
 {
+#ifdef MEMOS
     MemoList *ml;
+#endif
+#ifdef NEWS
     NewsList *nl;
+#endif
     NickInfo *ni;
     Memo *m;
     char *arg = strtok(NULL, " ");
+#ifdef NEWS
     char *arg2 = strtok(NULL, " ");
     char *arg3 = strtok(NULL, "");
+#else
+    char *arg2 = strtok(NULL, "");
+#endif /* NEWS */
     char *numstr;
     int num;
+#ifdef STUPID
+    char *source = sstrdup(whoto);
+#endif
 
     if (arg) {
+#ifdef NEWS
 	if (arg2) {
 	    if (!arg3)
+#endif /* NEWS */
 		strcpy(numstr,arg);
+#ifdef NEWS
 	    else
 		strcpy(numstr,arg2);
 	}
+#endif /* NEWS */
     }
     if (!arg2) {
+#ifdef NEWS
 	notice(s_MemoServ, source, "Syntax: \2FORWARD \37num\37 user|channel");
 	notice(s_MemoServ, source, "Syntax: \2FORWARD channel \37num\37 user|channel");
+#else
+	notice(s_MemoServ, source, "Syntax: \2FORWARD \37num\37 user");
+#endif /* NEWS */
       notice(s_MemoServ, source,
 		"\2/msg %s HELP FORWARD\2 for more information.", s_MemoServ);
     
     } else if (!numstr || (num = atoi(numstr)) <= 0) {
+#ifdef NEWS
       if(arg[0]!='#')
 	notice(s_MemoServ, source, "Syntax: \2FORWARD \37num\37 user|channel");
       else
 	notice(s_MemoServ, source, "Syntax: \2FORWARD channel \37num\37 user|channel");
+#else
+	notice(s_MemoServ, source, "Syntax: \2FORWARD \37num\37 user");
+#endif /* NEWS */
       notice(s_MemoServ, source,
 		"\2/msg %s HELP FORWARD\2 for more information.", s_MemoServ);
 
+#ifdef NEWS
     } else if (arg[0]=='#') {
 
     ChannelInfo *ci;
@@ -870,14 +989,16 @@ static void do_forward(const char *source)
 		char s[NICKMAX+CHANMAX+2];
 		char whofrom[NICKMAX];
 		m = &nl->newss[i];
-		strcat(s, m->sender);
+		strcpy(s, m->sender);
 		strcat(s, "/");
 		strcat(s, ci->name);
-		strcat(whofrom, source);
+		strcpy(whofrom, source);
 		do_fwd2(whofrom, s, arg3, m->text);
 	    }
 
       }
+#endif /* NEWS */
+#ifdef MEMOS
     } else {
       if (!(ni = findnick(source))) {
 	notice(s_MemoServ, source, "Your nick is not registered.  Type"
@@ -914,7 +1035,11 @@ static void do_forward(const char *source)
 		    do_fwd2(whofrom, m->sender, arg2, m->text);
 	    }
       }
+#endif
     }
+#ifdef STUPID
+    free(source);
+#endif
 }
 
 /*************************************************************************/
@@ -923,37 +1048,56 @@ static void do_forward(const char *source)
 
 static void do_del(const char *source)
 {
+#ifdef MEMOS
     MemoList *ml;
+#endif
+#ifdef NEWS
     NewsList *nl;
+#endif /* NEWS */
     NickInfo *ni;
+#ifdef NEWS
     char *arg = strtok(NULL, " ");
     char *arg2 = strtok(NULL, "");
+#else
+    char *arg = strtok(NULL, "");
+#endif /* NEWS */
     char *numstr;
     int num, i;
 
     if (arg) {
+#ifdef NEWS
 	    if (!arg2)
+#endif /* NEWS */
 		strcpy(numstr,arg);
+#ifdef NEWS
 	    else
 		strcpy(numstr,arg2);
+#endif /* NEWS */
     }
     	
     
     if (!arg) {
 	notice(s_MemoServ, source, "Syntax: \2DEL {\37num\37 | ALL}");
+#ifdef NEWS
 	notice(s_MemoServ, source, "Syntax: \2DEL channel {\37num\37 | ALL}");
+#endif /* NEWS */
       notice(s_MemoServ, source,
 		"\2/msg %s HELP DEL\2 for more information.", s_MemoServ);
 
     } else if (!numstr ||
 	    ((num = atoi(numstr)) <= 0 && stricmp(numstr, "ALL") != 0)) {
+#ifdef NEWS
       if(arg[0]!='#')
+#endif /* NEWS */
 	notice(s_MemoServ, source, "Syntax: \2DEL {\37num\37 | ALL}");
+#ifdef NEWS
       else
 	notice(s_MemoServ, source, "Syntax: \2DEL channel {\37num\37 | ALL}");
+#endif
       notice(s_MemoServ, source,
 		"\2/msg %s HELP DEL\2 for more information.", s_MemoServ);
 
+#ifdef NEWS
     } else if (arg[0]=='#') {
 
       ChannelInfo *ci;
@@ -1010,6 +1154,8 @@ static void do_del(const char *source)
 	    del_newslist(nl);
       }
 
+#endif
+#ifdef MEMOS
     } else {
       if (!(ni = findnick(source))) {
 	notice(s_MemoServ, source, "Your nick is not registered.  Type"
@@ -1058,9 +1204,11 @@ static void do_del(const char *source)
 	if (ml->n_memos == 0)
 	    del_memolist(ml);
       }
+#endif /* MEMOS */
     }
 }
 
+#ifdef NEWS
 void expire_news()
 {
     NewsList *nl;
@@ -1088,10 +1236,15 @@ void expire_news()
 	}
     }
 }
+#endif /* NEWS */
 
 static void do_fwd2(const char *source, const char *origin, char *arg, const char *intext) {
+#ifdef MEMOS
     MemoList *ml;
+#endif
+#ifdef NEWS
     NewsList *nl;
+#endif /* NEWS */
     NickInfo *ni;
     Memo *m;
     char *text;
@@ -1102,6 +1255,7 @@ static void do_fwd2(const char *source, const char *origin, char *arg, const cha
     free(Torigin);
     free(Tintext);
 
+#ifdef NEWS
     if (arg[0]=='#') {
 
       ChannelInfo *ci;
@@ -1152,9 +1306,11 @@ static void do_fwd2(const char *source, const char *origin, char *arg, const cha
 			s_MemoServ, arg, m->number);
 	}
      }
-
+#ifdef MEMOS
     } else {
-
+#endif
+#endif /* NEWS */
+#ifdef MEMOS
       if (!(ni = findnick(source))) {
 	notice(s_MemoServ, source, "Your nick is not registered.  Type"
 			"\2/msg %s HELP\2 for information on registering"
@@ -1201,7 +1357,11 @@ static void do_fwd2(const char *source, const char *origin, char *arg, const cha
 			s_MemoServ, m->number);
 	}
       }
+#endif
+#ifdef NEWS
     }
+#endif
 }
 
 #endif	/* !SKELETON */
+#endif  /* MEMOSERV */

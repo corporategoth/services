@@ -1,7 +1,15 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
-1997/??/?? .5	Implemented DAL4.4.15+ Services Support, Including:
+1997/11/10 .6	Fixed up the "Pick 'n' Choose" section of config.h so it
+		    now actually makes the end result smaller :)
+		Added ChanServ and NickServ SUSPEND/UNSUSPEND functions
+		AKILL's will now expire after a time specified in config.h
+		Added PAKILL - non-expiring AKILLS settable by SOP's
+		Channel/Nick memos will get erased with the channel/nick
+		Added ON/OFF so u can enable/disable services without QUIT
+		ON, OFF, QUIT, SHUTDOWN and RAW are passworded (config.h)
+1997/11/05 .5	Implemented DAL4.4.15+ Services Support, Including:
 		    Killing users without a Killed (IrcOp (reason))
 		    Server and Nick quarentining via. OperServ
 		    Setting of nick's modes with MODE command.

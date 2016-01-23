@@ -6,6 +6,8 @@
  * details.
  */
 
+#ifdef CHANSERV
+
 /*************************************************************************/
 
 static const char *oper_drop_help[] = {
@@ -40,3 +42,33 @@ static const char *forbid_help[] = {
 NULL
 };
 /*************************************************************************/
+
+static const char *suspend_help[] = {
+"Syntax: \2SUSPEND \37channel reason\37\2",
+"",
+"Makes ACCESS and AKICK lists (and FOUNDER) meaningless.",
+"SOP's will get autoops and founder, everyone else",
+"(regardless of previous level on access list, even if",
+"they were founder) will be just a 0-level user.  AKICK",
+"list is disabled, and INVITE is publicly accessable.",
+"By its nature, MEMOs are only postable by SOPS.",
+"This should be used for BRIEF periods of time when a",
+"channel needs repremanding,  but not quite a DROP.",
+"Limited to \2Services Admin\2.",
+NULL
+};
+/*************************************************************************/
+
+static const char *unsuspend_help[] = {
+"Syntax: \2UNSUSPEND \37channel\37\2",
+"",
+"This reverses the SUSPEND command, giving back full control",
+"to the previos founder/access list.  Everything previously",
+"imposed by SUSPEND will be reversed.  One drawback however",
+"is that TOPICLOCK will be set OFF and KEEPTOPIC on."
+"Limited to \2Services Admin\2.",
+NULL
+};
+/*************************************************************************/
+
+#endif /* CHANSERV */

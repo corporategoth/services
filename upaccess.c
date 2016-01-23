@@ -12,6 +12,8 @@
  
 #include "services.h"
 
+#ifdef CHANSERV
+
 ChannelInfo *chanlists[256];
 ChannelInfo *cs_findchan(const char *chan);
 
@@ -471,4 +473,5 @@ void main() {
 	}
 
 	save_cs_dbase();
-}	
+}
+#endif /* !SKELETON && CHANSERV */
