@@ -1,0 +1,13 @@
+The test databases are set up as follows:
+
+NickServ:
+	Nick "Alcan", password "mypass", one access mask: "achurch@*.dragonfire.net"
+
+ChanServ:
+	Channel "#test", password "testpass", empty access list
+
+MemoServ:
+	One memo for Alcan: "Just a test."
+
+OperServ:
+	One autokill: mask "lamer@*.blah.org", reason "Fool!"

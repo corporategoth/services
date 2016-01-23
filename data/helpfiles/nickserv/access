@@ -1,0 +1,22 @@
+Syntax: ACCESS ADD mask
+        ACCESS DEL mask
+        ACCESS LIST
+
+Modifies or displays the access list for your nick.  This
+is the list of addresses which will be automatically
+recognized by NickServ as allowed to use the nick.  If
+you want to use the nick from a different address, you
+need to send an IDENTIFY command to make NickServ
+recognize you.
+
+Examples:
+
+    ACCESS ADD achurch@*.dragonfire.net
+        Allows access to user achurch from any machine in
+        the dragonfire.net domain.
+
+    ACCESS DEL achurch@*.dragonfire.net
+        Reverses the previous command.
+
+    ACCESS LIST
+        Displays the current access list.

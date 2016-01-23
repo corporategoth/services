@@ -1,0 +1,6 @@
+Syntax: READ [channel] num
+
+Sends you the text of memo number num.  If channel
+is specified, it sends it of the channel, if not, it
+sends it of your personal memo's.
+

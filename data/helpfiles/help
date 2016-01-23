@@ -1,0 +1,10 @@
+HelpServ is a service designed to give out information on
+IRC and DarkerNet itself.  It has relatively few commands at 
+the moment, but the helpfiles are being written currently.  
+As of now, it has three commands:
+
+    LISTADMIN - Lists the Services staff
+    SERVER - Retrieves info on the server specified
+    RULES - Guidelines & info about DarkerNet
+
+More commands will be added as helpfiles are written.

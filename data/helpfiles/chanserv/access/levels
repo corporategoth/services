@@ -1,0 +1,24 @@
+User access levels
+
+There are currently five distinct access levels
+available:
+
+Founder   Full access to ChanServ functions; automatic
+                  opping upon entering channel.  Note
+                  that only one person may have founder
+                  status (it cannot be given using the
+                  ACCESS command).
+     20   Access to change all SET commands except
+                  FOUNDER and PASSWORD.
+     10   Access to AKICK command; automatic opping.
+      5   Automatic opping.
+      0   No special privileges; can be opped by other
+                  ops (unless secure-ops is set).
+     <0   May not be opped.
+
+In addition, any user with access level greater than zero
+can add other users to the access list, as long as the new
+entries are for levels less than the user's own.  So, for
+example, a level 10 user can add level 5 users, and either
+a level 10 or a level 5 user can add negative-level users.
+Founders can add users at any level they want.
