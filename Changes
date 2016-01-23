@@ -1,6 +1,15 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
+1997/??/?? .8	Changed the way CLONE detection works (MAJORLY!)
+		Added "CLONE" for allowing more than "Default max clones"
+		Fixed bug that didnt reset "current online" lists.
+		Added "is already there" and "kill all matching" to akill
+		Added chanserv Auto-Unban for when ppls are banned on a
+		    channel by someone equal to or lower than them.
+		Capped the chanserv levels (to stop the "10000" bug).
+		Fixed the chanserv UNBAN option so it does ALL bans.
+		Added 'bounce bans on link' for def_level[2]+ (10 usually)
 1997/11/20 .7	Fixed a few bugs (nickserv IDENT, Globals and Mass -v's)
 		Removed SKELETON defines - obsolite by Pick 'n' Choose.
 		Removed test/ directory - was old, outdated and useless!

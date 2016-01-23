@@ -24,7 +24,7 @@
 #define SERVICES_HOST	"darker.net"
 
 /* Services level means the priority this version of services has over
- * other services on the net (the higher number, the higher priority).
+ * other services on the net (the lower number, the higher priority).
  * This is mainly for networks with backup services and want the backups
  * to kick in should the primaries die.  If this is set >1 then services
  * are in READ ONLY mode - no database modification will be allowed.
@@ -87,6 +87,7 @@
 #define MEMOSERV_DB	"memo.db"
 #define NEWSSERV_DB	"news.db"
 #define AKILL_DB	"akill.db"
+#define CLONE_DB	"clone.db"
 
 /* File containing process ID */
 #define PID_FILE	"services.pid"
@@ -132,7 +133,7 @@
 #define AKICK_MAX	32
 
 /* Default reason for AKICK if none is given. */
-#define DEF_AKICK_REASON "User has been banned from the channel"
+#define DEF_AKICK_REASON "You have been banned from the channel"
 
 
 
@@ -162,31 +163,21 @@
  */
 #define SERVICES_OPS		"PreZ Lord_Striker"
 
-/* Number of days before erasing akills not set with PAKILL */
-#define AKILL_EXPIRE		7
-
-/* How big a hostname list do we keep for clone detection? */
-#define CLONE_DETECT_SIZE	16
-
-/* How many successive connects do we have to see before we consider the
- * possibility of clones?
- */
-#define CLONE_MIN_USERS		5
-
-/* How much time (in seconds) has to elapse between successive users
- * before we decide they're not clones?
- */
-#define CLONE_MAX_DELAY		10
-
-/* How long do we wait (in seconds) between successive warnings for
- * clones between the same host?
- */
-#define CLONE_WARNING_DELAY	30
-
 /* Super Password (IMPORTANT) - Services OP's with this password can
  * QUIT, SHUTDOWN, RAW and do the ON/OFF commands
  */
 #define SUPERPASS		"MyPassword"
+
+/* Number of days before erasing akills not set with PAKILL */
+#define AKILL_EXPIRE		7
+
+/* How many CLONES are allowed by default? */
+#define CLONES_ALLOWED		2
+
+/* Default reason for AKICK if none is given. */
+#define DEF_CLONE_REASON "Exceeded maximum amount of connections from one host."
+
+
 
 /******* Miscellaneous - it should be save to leave these untouched *******/
 

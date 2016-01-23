@@ -10,7 +10,7 @@
 
 #ifdef NICKSERV
 
-static NickInfo *nicklists[256];	/* One for each initial character */
+NickInfo *nicklists[256];	/* One for each initial character */
 
 const char s_NickServ[] = "NickServ";
 
@@ -29,12 +29,6 @@ struct timeout_ {
 #define TO_RELEASE	1	/* Release a collided nick */
 
 Timeout *timeouts = NULL;
-
-#ifdef MEMOS
-extern MemoList *memolists[256];
-extern MemoList *find_memolist(const char *nick);
-#endif
-extern void change_user_nick(User *u, const char *nick);
 
 static int is_on_access(User *u, NickInfo *ni);
 static void alpha_insert_nick(NickInfo *ni);
@@ -820,7 +814,7 @@ static void collide(NickInfo *ni)
 	send_cmd(s_NickServ, "SVSNICK %s %s :%lu",
     		ni->nick, newnick, time(NULL));
 	notice(s_NickServ, newnick,
-		"Your nick has been foribly changed (Nick protection enforced)");
+		"Your nick has been forcibly changed (Nick protection enforced)");
 	change_user_nick(u, newnick);
     }
 #else

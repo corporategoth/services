@@ -8,7 +8,7 @@
 
 #include "services.h"
 
-static User *userlist = NULL;
+User *userlist = NULL;
 
 int usercnt = 0, opcnt = 0, maxusercnt = 0;
 
@@ -62,6 +62,9 @@ static void delete_user(User *user)
 	opcnt--;
 #ifdef NICKSERV
     cancel_user(user);
+#endif
+#ifdef CLONES
+    clones_del(user->host);
 #endif
     free(user->username);
     free(user->host);
@@ -176,6 +179,32 @@ User *finduser(const char *nick)
     return user;
 }
 
+#ifdef AKILL
+int findakill (const char *mask, const char *reason)
+{
+    User *user = userlist;
+    int cnt = 0;
+    char buf[512];
+    int i;
+
+
+    while (user) {
+        strscpy(buf, user->username, sizeof(buf)-2);
+        i = strlen(buf);
+        buf[i++] = '@';
+        strlower(strscpy(buf+i, user->host, sizeof(buf)-i));
+	if (match_wild(mask, buf)) {
+	    cnt++;
+	    send_cmd(s_OperServ,
+			"KILL %s :You are banned (%s)",
+			user->nick, reason);
+	}
+	user = user->next;
+    }
+    return cnt;
+}
+#endif
+
 /*************************************************************************/
 /*************************************************************************/
 
@@ -235,7 +264,7 @@ void do_nick(const char *source, int ac, char **av)
 
 	/* Check to see if it looks like clones. */
 #ifdef CLONES
-	if (!is_services_nick(av[0])) check_clones(user);
+	if (!is_services_nick(av[0])) clones_add(av[0], user->host);
 #endif
 
 #ifdef GLOBALNOTICER

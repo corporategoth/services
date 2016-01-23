@@ -381,6 +381,20 @@ void introduce_user(const char *user)
 
 /*************************************************************************/
 
+/* Is the 'user' a server? */
+int is_server(const char *nick)
+{
+    int i;
+    
+    for (i=0;i<strlen(nick) && nick[i]!='.';i++) ;
+    
+    if (nick[i]=='.')
+	return 1;
+    return 0;
+}
+
+/*************************************************************************/
+
 /* Remove our PID file.  Done at exit. */
 void remove_pidfile()
 {
@@ -779,6 +793,9 @@ are given, detailed information about those channels is displayed.\n\
 #ifdef AKILL
     load_akill();
 #endif
+#ifdef CLONES
+    load_clone();
+#endif
 
 
     /* Connect to the remote server */
@@ -850,6 +867,9 @@ are given, detailed information about those channels is displayed.\n\
 #ifdef AKILL
 	    save_akill();
 #endif
+#ifdef CLONES
+	    save_clone();
+#endif
 	  }
 	    if (save_data < 0)
 		break;	/* out of main loop */
@@ -889,6 +909,9 @@ are given, detailed information about those channels is displayed.\n\
 	send_cmd(server_name, "SQUIT %s :%s", server_name, quitmsg);
 restart:
     disconn(servsock);
+    userlist = NULL;
+    chanlist = NULL;
+    clonelist = NULL;
 
     if (server_relink > 0)
 	sleep(server_relink);

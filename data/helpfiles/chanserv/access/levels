@@ -10,7 +10,8 @@ available:
                   ACCESS command).
      25   Access to change all SET commands except
                   FOUNDER and PASSWORD.
-     15   Access to AKICK command; automatic opping.
+     20   Access to AKICK and CLEAR commands.
+     15   Access to posting Channel NEWS.
      10   Automatic opping.
       5   Automatic voicing.
       0   No special privileges; can be opped by other

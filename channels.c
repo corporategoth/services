@@ -8,7 +8,7 @@
 
 #include "services.h"
 
-static Channel *chanlist = NULL;
+Channel *chanlist = NULL;
 
 /*************************************************************************/
 
@@ -356,12 +356,77 @@ void do_cmode(const char *source, int ac, char **av)
 		break;
 	    }
 	    if (add) {
+#ifdef CHANSERV
+		ChannelInfo *ci;
+		int i;
+#endif
 		if (chan->bancount >= chan->bansize) {
 		    chan->bansize += 8;
 		    chan->bans = srealloc(chan->bans,
 					sizeof(char *) * chan->bansize);
 		}
 		chan->bans[chan->bancount++] = sstrdup(*av++);
+#ifdef CHANSERV
+		if ((ci = cs_findchan(chan->name)) && ((user = finduser(source))
+			|| is_server(source)) && !is_services_nick(source)) {
+		    int setlev = 0, banlev = -1;
+		    ChanAccess *access;
+		    /* Find out the level of the BANNER (setlev) */
+		    if (is_server(source))
+			setlev=def_access[2]-1;
+		    else {
+			for (access = ci->access, i = 0; i < ci->accesscount;
+							    ++access, ++i) {
+			    if (access->is_nick) {
+				if (stricmp(access->name, user->nick)==0) {
+				    NickInfo *ni = findnick(user->nick);
+				    if ((ni->flags & NI_IDENTIFIED) ||
+						(ni->flags & NI_RECOGNIZED)) {
+					if (is_founder(user, ni, ci))
+					    setlev = def_access[8];
+					else
+					    if (setlev < access->level)
+						setlev = access->level;
+				    }
+				}
+			    } else {
+				if (match_usermask(access->name, user))
+				    if (setlev < access->level)
+					setlev = access->level;
+			    }
+			}
+		    }
+		    /* Find out the level of the BANNEE (banlev) */
+		    user = userlist;
+		    while (user) {
+			if (match_usermask(chan->bans[chan->bancount-1], user)) {
+			    for (access = ci->access, i = 0; i < ci->accesscount; ++access, ++i) {
+				if (access->is_nick) {
+				    if (stricmp(access->name, user->nick)==0) {
+					NickInfo *ni = findnick(user->nick);
+					if ((ni->flags & NI_IDENTIFIED) ||
+						(ni->flags & NI_RECOGNIZED)) {
+					    if (is_founder(user, ni, ci))
+						banlev = def_access[8];
+					    else
+						if (banlev < access->level)
+						    banlev = access->level;
+					}
+				    }
+				} else {
+				    if (match_usermask(access->name, user))
+					if (banlev < access->level)
+					    banlev = access->level;
+				}
+			    }
+			}
+			user = user->next;
+		    }
+		    /* Unban if the BANNEE is HIGHER or EQUAL TO the BANNER */
+		    if (banlev >= setlev)
+			do_chcmode(s_ChanServ, chan->name, "-b", chan->bans[chan->bancount-1]);
+		}
+#endif
 	    } else {
 		char **s = chan->bans;
 		int i = 0;
@@ -478,6 +543,21 @@ void do_cmode(const char *source, int ac, char **av)
     check_modes(chan->name);
 #endif
 }
+
+#ifdef CHANSERV
+void do_chcmode (const char *who, const char *chan, const char *mode, const char *pram)
+{
+    char *av[3];
+    av[0] = sstrdup(chan);
+    av[1] = sstrdup(mode);
+    av[2] = sstrdup(pram);
+    send_cmd(who, "MODE %s %s %s", chan, mode, pram);
+    do_cmode(who, 3, av);
+    free(av[2]);
+    free(av[1]);
+    free(av[0]);
+}
+#endif
 
 /*************************************************************************/
 

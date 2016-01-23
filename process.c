@@ -14,7 +14,6 @@
 /* Use ignore code? */
 
 int allow_ignore = 1;
-extern int mode;
 
 /* People to ignore (hashed by first character of nick). */
 

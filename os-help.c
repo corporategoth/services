@@ -20,7 +20,8 @@ NULL
 static const char *os_sop_help[] = {
 "OperServ commands (Service Admins):",
 "   \2KILL\2 \37user\37 \37reason\37 -- Kill user with no indication of IrcOP",
-"   \2PAKILL\2 {\37ADD\37|\37DEL\37} [\37mask\37 [\37reason\37]] -- Manipulate the PAKILL list",
+"   \2PAKILL\2 {\37ADD\37|\37DEL\37} [\37mask\37] [\37reason\37]] -- Manipulate the PAKILL list",
+"   \2CLONE\2 {\37ADD\37|\37DEL\37|\37LIST\37|\37VIEW\37} [\37mask\37] [37amount\37] [\37reason\37]] -- Manipulate the CLONE list",
 "   \2QLINE\2 \37nick\37 [\37reason\37] -- Quarentine a nick (disable its use)",
 "   \2UNQLINE\2 \37nick\37 -- Remove nick quarentine",
 "   \2NOOP\2 \37server\37 {\37+\37|\37-\37} -- Restrict server's Operaters to local",
@@ -35,7 +36,8 @@ NULL
 #else
 static const char *os_sop_help[] = {
 "OperServ commands (Service Admins):",
-"   \2PAKILL\2 {\37ADD\37|\37DEL\37} [\37mask\37 [\37reason\37]] -- Manipulate the PAKILL list",
+"   \2PAKILL\2 {\37ADD\37|\37DEL\37} [\37mask\37] [\37reason\37]] -- Manipulate the PAKILL list",
+"   \2CLONE\2 {\37ADD\37|\37DEL\37|\37LIST\37|\37VIEW\37} [\37mask\37] [37amount\37] [\37reason\37]] -- Manipulate the CLONE list",
 "   \2JUPE\2 \37server\37 -- Make server appear linked",
 "   \2UPDATE\2 -- Update *Serv databases (before QUIT)",
 "   \2QUIT\2 -- Terminate services without database save",
@@ -89,6 +91,7 @@ NULL
 };
 
 /*************************************************************************/
+
 #ifdef AKILL
 static const char *akill_help[] = {
 "Syntax: AKILL ADD \37mask\37 \37reason\37",
@@ -102,7 +105,7 @@ static const char *akill_help[] = {
 " ",
 "AKILL ADD adds the given user@host mask to the AKILL",
 "list for the given reason (which \2must\2 be given).",
-"Only Service Admins may give a user@* mask.",
+"Only services admins may give a @* mask.",
 "AKILL DEL removes the given mask from the AKILL list if it",
 "is present.  AKILL LIST shows all current AKILLs; if the",
 "optional mask is given, the list is limited to those",
@@ -121,6 +124,33 @@ static const char *pakill_help[] = {
 "issue a KILL for that user. PAKILL's do not expire.",
 "See help on \37AKILL\37 for further information.",
 "Limited to \2Services Admin\2.",
+NULL
+};
+#endif
+
+/*************************************************************************/
+
+#ifdef CLONES
+static const char *clone_help[] = {
+"Syntax: CLONE ADD \37mask\37 \37amount\37 \37reason\37",
+"        CLONE DEL \37mask\37",
+"        CLONE LIST [\37mask\37]",
+"        CLONE VIEW [\37mask\37]",
+"",
+"If a user matching a CLONE host attempts to connect, will",
+"Services will grant them \37amount\37 connections at once,",
+"instead of the standard 2, if more than this are attempted",
+"hoowever, services will issue a KILL for that user.",
+" ",
+"CLONE ADD adds the given host to the CLONE list with",
+"the given connections and for list for the given reason",
+"(which \2must\2 be given).",
+"CLONE DEL removes the given host from the CLONE list if it",
+"is present.  CLONE LIST shows all current CLONEs; if the",
+"optional host is given, the list is limited to those",
+"CLONEs matching the mask.  CLONE VIEW is a more verbose",
+"version of CLONE LIST, and will show who added an CLONE as",
+"well as the host, amount and reason.",
 NULL
 };
 #endif

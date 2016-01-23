@@ -271,6 +271,9 @@ struct newslist_ {
 
 typedef struct user_ User;
 typedef struct channel_ Channel;
+#ifdef CLONES
+typedef struct clone_ Clone;
+#endif
 
 struct user_ {
     User *next, *prev;
@@ -300,6 +303,13 @@ struct user_ {
 #define UMODE_W 0x0008
 #define UMODE_G 0x0010
 
+#ifdef CLONES
+struct clone_ {
+    Clone *next, *prev;
+    char *host;
+    int amount;
+};
+#endif
 
 struct channel_ {
     Channel *next, *prev;

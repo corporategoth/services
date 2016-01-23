@@ -21,13 +21,6 @@ const char s_MemoServ[] = "MemoServ";
 
 #include "ms-help.c"
 
-#ifdef NEWS
-extern ChannelInfo *chanlists[256];
-extern ChannelInfo *cs_findchan(const char *chan);
-extern int get_access(User *user, ChannelInfo *ci);
-extern int def_access[];
-#endif /* NEWS */
-
 #ifdef MEMOS
 MemoList *find_memolist(const char *nick);	/* Needed by NICKSERV */
 static void alpha_insert_memolist(MemoList *ml);

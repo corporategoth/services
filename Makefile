@@ -3,14 +3,13 @@
 
 include Makefile.inc
 
-VERSION = 3.0.7
+VERSION = 3.0.8
 
 ########################## Configuration section ##########################
 
 
 # Compilation options:
-#	-DREADONLY	Compile a normal version of Services, but with
-#			    database modification disabled ("backup" Services)
+#		none.
 #
 # If you change this value, REMEMBER to "make clean", or you may come out
 # with a confused executable!

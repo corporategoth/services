@@ -18,9 +18,6 @@ const char s_GlobalNoticer[] = "Death";
 /* Nick for OperServ */
 const char s_OperServ[] = "OperServ";
 
-extern int mode;
-extern int terminating;
-
 #ifdef AKILL
 static int nakill = 0;
 static int akill_size = 0;
@@ -33,28 +30,33 @@ static struct akill {
 #endif
 
 #ifdef CLONES
-struct clone {
+static int nclone = 0;
+static int clone_size = 0;
+static struct clone {
     char *host;
-    long time;
-};
+    int amount;
+    char *reason;
+    char who[NICKMAX];
+    time_t time;
+} *clones = NULL;
 
-/* List of most recent users - statically initialized to zeros */
-static struct clone clonelist[CLONE_DETECT_SIZE];
-
-/* Which hosts have we warned about, and when?  This is used to keep us
- * from sending out notices over and over for clones from the same host. */
-static struct clone warnings[CLONE_DETECT_SIZE];
+Clone *clonelist = NULL;
 #endif
 
 #ifdef AKILL
 static void do_akill(const char *source, int call);
-static void add_akill(const char *mask, const char *reason, const char *who, int call);
+static int add_akill(const char *mask, const char *reason, const char *who, int call);
 static int del_akill(const char *mask, int call);
+static int is_on_akill(char *mask);
 #endif
 #ifdef CLONES
-static void send_clone_lists(const char *source);
-static void do_set(const char *source);
+static void do_clone(const char *source);
+static void add_clone(const char *host, int amount, const char *reason, const char *who);
+static int del_clone(const char *host);
+static Clone *findclone(const char *host);
+static int is_on_clone(char *host);
 #endif
+static void do_set(const char *source);
 
 /*************************************************************************/
 
@@ -195,6 +197,10 @@ void operserv(const char *source, char *buf)
 	else if (stricmp(cmd, "PAKILL") == 0)
 	    notice_list(s_OperServ, source, pakill_help);
 #endif
+#ifdef CLONES
+	else if (stricmp(cmd, "CLONE") == 0)
+	    notice_list(s_OperServ, source, clone_help);
+#endif
 	else if (stricmp(cmd, "UPDATE") == 0)
 	    notice_list(s_OperServ, source, update_help);
 	else if (stricmp(cmd, "ON") == 0)
@@ -308,31 +314,18 @@ void operserv(const char *source, char *buf)
 			"NewsServ: \2%6d\2 records, \2%5d\2 kB",
 			count, (mem+1023) / 1024);
 #endif
-#ifdef CLONES
-	    count = 0;
-	    mem = sizeof(struct clone) * CLONE_DETECT_SIZE * 2;
-	    for (i = 0; i < CLONE_DETECT_SIZE; i++) {
-		if (clonelist[i].host) {
-		    count++;
-		    mem += strlen(clonelist[i].host)+1;
-		}
-		if (warnings[i].host) {
-		    count++;
-		    mem += strlen(warnings[i].host)+1;
-		}
-	    }
-#endif
 	    notice(s_OperServ, source,
 			"OperServ: \2%6d\2 records, \2%5d\2 kB",
 #ifdef AKILL
 #ifdef CLONES
-			nakill + count,
-			(akill_size * sizeof(*akills) + mem + 1023) / 1024);
+			nakill + nclone,
+			((akill_size * sizeof(*akills) + 1023) +
+			(clone_size * sizeof(*clones) + 1023)) / 1024);
 #else
 			nakill, (akill_size * sizeof(*akills) + 1023) / 1024);
 #endif /* CLONES */
 #else
-			count, (mem+1023) / 1024);
+			nclone, (clone_size * sizeof(*clones) + 1023) / 1024);
 #endif /*AKILL */
 	}
 
@@ -419,6 +412,12 @@ void operserv(const char *source, char *buf)
     } else if (stricmp(cmd, "PAKILL") == 0) {
 
 	do_akill(source, 1);
+#endif
+
+#ifdef CLONES
+    } else if (stricmp(cmd, "CLONE") == 0) {
+
+	do_clone(source);
 #endif
 
     } else if (stricmp(cmd, "SET") == 0) {
@@ -663,22 +662,29 @@ static void do_akill(const char *source, int call)
 
     if (stricmp(cmd, "ADD") == 0) {
 	if ((mask = strtok(NULL, " ")) && (reason = strtok(NULL, ""))) {
-	    if (s = strchr(mask, '@')) {
-		strlower(s);
-	    } else {
+	    int nonchr;
+	    strlower(mask);
+	    if (!(s = strchr(mask, '@'))) {
 		notice(s_OperServ, source, "Hostmask must contain an `@'
 			character.");
 		return;
 	    }
 		/* Find @*, @*.*, @*.*.*, etc. and dissalow if !SOP */
-	    for(i=strlen(mask)-1;mask[i]=='*' || mask[i]=='?' || mask[i]=='.' ;i--) ;
+	    for(i=strlen(mask)-1;mask[i]=='*' || mask[i]=='?' || mask[i]=='.';i--) ;
 	    if(mask[i]=='@' && !is_services_op(source))
 		notice(s_OperServ, source, "@* AKILL's are not allowed!!");
-	    else if(strlen(mask)<8)
-		notice(s_OperServ, source, "AKILL mask too short!");
 	    else {
-		add_akill(mask, reason, source, call);
-		notice(s_OperServ, source, "%s added to AKILL list.", mask);
+		nonchr = 0;
+		for(;mask[i]!='@';i--)
+		    if(!(mask[i]=='*' || mask[i]=='?' || mask[i]=='.'))
+			nonchr++;
+		if(nonchr<4 && !is_services_op(source))
+		    notice(s_OperServ, source, "Must have at least 3 non- *, ? or . characters.");
+		else if(is_on_akill(mask))
+		    notice(s_OperServ, source, "AKILL already exists (or inclusive)");
+		else {		
+		    notice(s_OperServ, source, "%s added to AKILL list (%d users killed)", mask, add_akill(mask, reason, source, call));
+		}
 	    }
 	} else {
 	    notice(s_OperServ, source,
@@ -691,8 +697,8 @@ static void do_akill(const char *source, int call)
 
     } else if (stricmp(cmd, "DEL") == 0) {
 	if (mask = strtok(NULL, " ")) {
-	    if (s = strchr(mask, '@'))
-		strlower(s);
+	    strlower(mask);
+	    s = strchr(mask, '@');
 	    if (del_akill(mask, call)) {
 		notice(s_OperServ, source, "%s removed from AKILL list.", mask);
 		if (s) {
@@ -719,10 +725,10 @@ static void do_akill(const char *source, int call)
 
     } else if (stricmp(cmd, "LIST") == 0) {
 	s = strtok(NULL, " ");
-	if (!s)
-	    s = "*";
-	if (strchr(s, '@'))
-	    strlower(strchr(s, '@'));
+	if (s) {
+	    strlower(s);
+	    strchr(s, '@');
+	}
 	notice(s_OperServ, source, "Current AKILL list:");
 	for (i = 0; i < nakill; ++i) {
 	    if (!s || match_wild(s, akills[i].mask)) {
@@ -733,10 +739,10 @@ static void do_akill(const char *source, int call)
 
     } else if (stricmp(cmd, "VIEW") == 0) {
 	s = strtok(NULL, " ");
-	if (!s)
-	    s = "*";
-	if (strchr(s, '@'))
-	    strlower(strchr(s, '@'));
+	if (s) {
+	    strlower(s);
+	    strchr(s, '@');
+	}
 	notice(s_OperServ, source, "Current AKILL list:");
 	for (i = 0; i < nakill; ++i) {
 	    if (!s || match_wild(s, akills[i].mask)) {
@@ -758,11 +764,26 @@ static void do_akill(const char *source, int call)
 
     } else {
 	notice(s_OperServ, source,
-		"Syntax: \2AKILL {ADD|DEL|LIST} [\37mask\37]\2");
+		"Syntax: \2AKILL {ADD|DEL|LIST|view} [\37mask\37]\2");
 	notice(s_OperServ, source,
 		"For help: \2/msg %s HELP AKILL\2", s_OperServ);
     }
 }
+
+static int is_on_akill(char *mask)
+{
+    int i;
+
+    strlower(mask);
+    for (i = 0; i < nakill; ++i) {
+	if (match_wild(akills[i].mask, mask)) {
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+/*************************************************************************/
 
 void expire_akill () {
     int i;
@@ -798,12 +819,9 @@ int check_akill(const char *nick, const char *username, const char *host)
     for (i = 0; i < nakill; ++i) {
 	if (match_wild(akills[i].mask, buf)) {
 	    char *av[2], nickbuf[NICKMAX];
-	    send_cmd(s_OperServ,
-			"KILL %s :%s (You are banned from this network)",
-			nick, s_OperServ);
 	    send_cmd(server_name,
-			"AKILL %s %s :You are banned from this network",
-			host, username);
+			"AKILL %s %s :You are Banned (%s)",
+			host, username, akills[i].reason);
 	    av[0] = strscpy(nickbuf, nick, NICKMAX);
 	    av[1] = "autokill";
 	    do_kill(s_OperServ, 2, av);
@@ -815,7 +833,7 @@ int check_akill(const char *nick, const char *username, const char *host)
 
 /*************************************************************************/
 
-static void add_akill(const char *mask, const char *reason, const char *who, int call)
+static int add_akill(const char *mask, const char *reason, const char *who, int call)
 {
     if (nakill >= akill_size) {
 	if (akill_size < 8)
@@ -832,6 +850,7 @@ static void add_akill(const char *mask, const char *reason, const char *who, int
 	akills[nakill].time = time(NULL);
     strscpy(akills[nakill].who, who, NICKMAX);
     ++nakill;
+    return findakill(mask, reason);
 }
 
 /*************************************************************************/
@@ -863,78 +882,313 @@ static int del_akill(const char *mask, int call)
 /**************************** Clone detection ****************************/
 /*************************************************************************/
 
-/* We just got a new user; does it look like a clone?  If so, send out a
- * GOPER to warn all IRCops.
- *
- * Note: Actually sends a GLOBOPS - GOPER isn't implemented in ircd.dal(?)
- */
 #ifdef CLONES
-
-void check_clones(User *user)
+void load_clone()
 {
-    int i, clone_count;
-    long last_time;
+    FILE *f = fopen(CLONE_DB, "r");
+    int i;
 
-#ifndef FIXED_CLONES
-    return;
-#endif
-    if (clonelist[0].host)
-	free(clonelist[0].host);
-    i = CLONE_DETECT_SIZE-1;
-    memmove(clonelist, clonelist+1, sizeof(struct clone) * i);
-    clonelist[i].host = sstrdup(user->host);
-    last_time = clonelist[i].time = time(NULL);
-    clone_count = 1;
-    while (--i >= 0 && clonelist[i].host) {
-	if (clonelist[i].time < last_time - CLONE_MAX_DELAY)
-	    break;
-	if (stricmp(clonelist[i].host, user->host) == 0) {
-	    ++clone_count;
-	    last_time = clonelist[i].time;
-	    if (clone_count >= CLONE_MIN_USERS)
-		break;
-	}
+    if (!f) {
+	log_perror("Can't read CLONE database " CLONE_DB);
+	return;
     }
-    if (clone_count >= CLONE_MIN_USERS) {
-	/* Okay, we have clones.  Check first to see if we already know
-	 * about them. */
-	for (i = CLONE_DETECT_SIZE-1; i >= 0; --i) {
-	    if (stricmp(warnings[i].host, user->host) == 0)
-		break;
+    switch (i = get_file_version(f, CLONE_DB)) {
+      case 4:
+      case 3:
+      case 2:
+      case 1:
+	nclone = fgetc(f) * 256 + fgetc(f);
+	if (nclone < 8)
+	    clone_size = 16;
+	else
+	    clone_size = 2*nclone;
+	clones = smalloc(sizeof(*clones) * clone_size);
+	if (!nclone) {
+	    fclose(f);
+	    return;
 	}
-	if (i < 0 || warnings[i].time < user->signon - CLONE_WARNING_DELAY) {
-	    /* Send out the warning, and note it. */
-	    send_cmd(s_OperServ,
-		"GLOBOPS :\2WARNING\2 - possible clones detected from %s",
-		user->host);
-	    i = CLONE_DETECT_SIZE-1;
-	    if (warnings[0].host)
-		free(warnings[0].host);
-	    bcopy(warnings+1, warnings, sizeof(struct clone) * i);
-	    warnings[i].host = sstrdup(user->host);
-	    warnings[i].time = clonelist[i].time;
+	if (nclone != fread(clones, sizeof(*clones), nclone, f))
+	    fatal_perror("Read error on %s", CLONE_DB);
+	for (i = 0; i < nclone; ++i) {
+	    clones[i].host = read_string(f, CLONE_DB);
+	    clones[i].reason = read_string(f, CLONE_DB);
 	}
+	break;
+      default:
+	fatal("Unsupported version (%d) on %s", i, CLONE_DB);
+    } /* switch (version) */
+    fclose(f);
+}
+
+/*************************************************************************/
+
+void save_clone()
+{
+    FILE *f;
+    int i;
+
+    remove(CLONE_DB ".save");
+    if (rename(CLONE_DB, CLONE_DB ".save") < 0)
+	fatal_perror("Can't back up %s", CLONE_DB);
+    f = fopen(CLONE_DB, "w");
+    if (!f) {
+	log_perror("Can't write to CLONE database %s", CLONE_DB);
+	if (rename(CLONE_DB ".save", CLONE_DB) < 0)
+	    fatal_perror("Can't restore backup copy of %s", CLONE_DB);
+	return;
+    }
+    if (fchown(fileno(f), -1, file_gid) < 0)
+	log_perror("Can't change group of %s to %d", CLONE_DB, file_gid);
+    write_file_version(f, CLONE_DB);
+
+    fputc(nclone/256, f); fputc(nclone & 255, f);
+    if (fwrite(clones, sizeof(*clones), nclone, f) != nclone)
+	fatal_perror("Write error on %s", CLONE_DB);
+    for (i = 0; i < nclone; ++i) {
+	write_string(clones[i].host, f, CLONE_DB);
+	write_string(clones[i].reason, f, CLONE_DB);
+    }
+    fclose(f);
+    remove(CLONE_DB ".save");
+}
+
+/*************************************************************************/
+
+/* Handle an CLONE command. */
+
+static void do_clone(const char *source)
+{
+    char *cmd, *host, *amt, *reason;
+    int i, amount;
+
+    cmd = strtok(NULL, " ");
+    if (!cmd)
+	cmd = "";
+
+    if (stricmp(cmd, "ADD") == 0) {
+	host   = strtok(NULL, " ");
+	amt    = strtok(NULL, " ");
+	reason = strtok(NULL, "");
+	if (reason) {
+	    strlower(host);
+	    amount = atoi(amt);
+		/* Find @*, @*.*, @*.*.*, etc. and dissalow */
+	    for(i=strlen(host)-1;host[i]=='*' || host[i]=='?' || host[i]=='.' ;i--) ;
+	    if(i==-1)
+		notice(s_OperServ, source, "* CLONE HOST's are not allowed!!");
+	    else if(is_on_clone(host))
+		notice(s_OperServ, source, "CLONE HOST already exists (or inclusive)");
+	    else if (amount<1)
+		notice(s_OperServ, source, "CLONE AMOUNT must be greater than 0");
+	    else {
+		add_clone(host, amount, reason, source);
+		notice(s_OperServ, source, "%s added to CLONE list.", host);
+	    }
+
+	} else {
+
+	    notice(s_OperServ, source,
+			"Syntax: CLONE ADD \37host\37 \37amount\37 \37reason\37");
+	}
+  if(services_level!=1) {
+	notice(s_OperServ, source,
+		"\2Notice:\2 Changes will not be saved!  Services is in read-only mode.");
+  }
+
+    } else if (stricmp(cmd, "DEL") == 0) {
+	host   = strtok(NULL, " ");
+	if (host) {
+	    strlower(host);
+	    if (del_clone(host)) {
+		notice(s_OperServ, source, "%s removed from CLONE list.", host);
+	    } else {
+		notice(s_OperServ, source, "%s not found on CLONE list.", host);
+	    }
+	} else {
+	    notice(s_OperServ, source, "Syntax: CLONE DEL \37host\37");
+	}
+  if(services_level!=1) {
+	notice(s_OperServ, source,
+		"\2Notice:\2 Changes will not be saved!  Services is in read-only mode.");
+  }
+
+    } else if (stricmp(cmd, "LIST") == 0) {
+	host   = strtok(NULL, " ");
+	if (host)
+	    strlower(host);
+	notice(s_OperServ, source, "Current CLONE list:");
+	for (i = 0; i < nclone; ++i) {
+	    if (!host || match_wild(host, clones[i].host)) {
+		notice(s_OperServ, source, "[%d] %-32s  %s",
+			clones[i].amount, clones[i].host, clones[i].reason);
+	    }
+	}
+
+    } else if (stricmp(cmd, "VIEW") == 0) {
+	host   = strtok(NULL, " ");
+	if (host)
+	    strlower(host);
+	notice(s_OperServ, source, "Current CLONE list:");
+	for (i = 0; i < nclone; ++i) {
+	    if (!host || match_wild(host, clones[i].host)) {
+	    	char timebuf[32];
+	    	time_t t;
+	    	struct tm tm;
+
+	    	time(&t);
+	    	tm = *localtime(&t);
+	    	strftime(timebuf, sizeof(timebuf), "%d %b %Y %H:%M:%S %Z", &tm);
+		notice(s_OperServ, source, "[%d] %s (by %s on %s)",
+				clones[i].amount, clones[i].host,
+				*clones[i].who ? clones[i].who : "<unknown>",
+				timebuf);
+		notice(s_OperServ, source, "    %s", clones[i].reason);
+	    }
+	}
+
+    } else {
+	notice(s_OperServ, source,
+		"Syntax: \2CLONE {ADD|DEL|LIST|VIEW} [\37host\37]\2");
+	notice(s_OperServ, source,
+		"For help: \2/msg %s HELP CLONE\2", s_OperServ);
     }
 }
 
-
-/* Debug: send clone arrays to given nick. */
-
-static void send_clone_lists(const char *source)
+static int is_on_clone(char *host)
 {
     int i;
 
-    notice(s_OperServ, source, "clonelist[]");
-    for (i = 0; i < CLONE_DETECT_SIZE; ++i) {
-	if (clonelist[i].host)
-	    notice(s_OperServ, source, "    %10ld  %s", clonelist[i].time, clonelist[i].host ? clonelist[i].host : "(null)");
+    strlower(host);
+    for (i = 0; i < nclone; ++i) {
+	if (match_wild(clones[i].host, host)) {
+	    return 1;
+	}
     }
-    notice(s_OperServ, source, "warnings[]");
-    for (i = 0; i < CLONE_DETECT_SIZE; ++i) {
-	if (clonelist[i].host)
-	    notice(s_OperServ, source, "    %10ld  %s", warnings[i].time, warnings[i].host ? warnings[i].host : "(null)");
+    return 0;
+}
+
+/*************************************************************************/
+
+static void add_clone(const char *host, int amount, const char *reason, const char *who)
+{
+    if (nclone >= clone_size) {
+	if (clone_size < 8)
+	    clone_size = 8;
+	else
+	    clone_size *= 2;
+	clones = srealloc(clones, sizeof(*clones) * clone_size);
+    }
+    clones[nclone].host = sstrdup(host);
+    clones[nclone].amount = amount;
+    clones[nclone].reason = sstrdup(reason);
+    clones[nclone].time = time(NULL);
+    strscpy(clones[nclone].who, who, NICKMAX);
+    ++nclone;
+}
+
+/*************************************************************************/
+
+/* Return whether the host was found in the CLONE list. */
+
+static int del_clone(const char *host)
+{
+    int i;
+
+    for (i = 0; i < nclone && strcmp(clones[i].host, host) != 0; ++i)
+	;
+    if (i < nclone) {
+	free(clones[i].host);
+	free(clones[i].reason);
+	--nclone;
+	if (i < nclone)
+	    bcopy(clones+i+1, clones+i, sizeof(*clones) * (nclone-i));
+	return 1;
+    } else {
+	return 0;
     }
 }
+
+/* We just got a new user; does it look like a clone?  If so, kill the
+ * user if not under or at the CLONE threshold.
+ */
+void clones_add(const char *nick, const char *host)
+{
+    Clone *clone;
+
+    if (!(clone = findclone(host))) {
+	clone = scalloc(sizeof(Clone), 1);
+	if (!host)
+	    host = "";
+	clone->host = sstrdup(host);
+	clone->amount = 1;
+	clone->next = clonelist;
+	if (clonelist)
+	    clonelist->prev = clone;
+	clonelist = clone;
+    } else {
+	char buf[512];
+	int i;
+
+	clone->amount += 1;
+
+	strscpy(buf, host, sizeof(buf)-1);
+	strlower(buf);
+	for (i = 0; i < nclone; ++i) {
+	    if (match_wild(clones[i].host, buf)) {
+		char *av[2], nickbuf[NICKMAX];
+
+		if (clone->amount>clones[i].amount) {
+		    send_cmd(s_OperServ,
+			"KILL %s :%s (%s)",
+			nick, s_OperServ, DEF_CLONE_REASON);
+		    av[0] = strscpy(nickbuf, nick, NICKMAX);
+		    av[1] = "clonekill";
+		    do_kill(s_OperServ, 2, av);
+		}
+		return;
+	    }
+	}
+	if (clone->amount>CLONES_ALLOWED) {
+	    char *av[2], nickbuf[NICKMAX];
+	    send_cmd(s_OperServ,
+		"KILL %s :%s (%s)",
+		nick, s_OperServ, DEF_CLONE_REASON);
+	    av[0] = strscpy(nickbuf, nick, NICKMAX);
+	    av[1] = "clonekill";
+	    do_kill(s_OperServ, 2, av);
+	}
+    }
+}
+
+void clones_del(const char *host)
+{
+    Clone *clone;
+
+    if (!(clone = findclone(host)))
+	return;
+
+    if (clone->amount>1)
+	clone->amount -= 1;
+    else {
+	free(clone->host);
+	if (clone->prev)
+	    clone->prev->next = clone->next;
+	else
+	    clonelist = clone->next;
+	if (clone->next)
+	    clone->next->prev = clone->prev;
+	free(clone);
+    }
+}
+
+static Clone *findclone(const char *host)
+{
+    Clone *clone = clonelist;
+    while (clone && stricmp(clone->host, host) != 0)
+	clone = clone->next;
+    return clone;
+}
+
 #endif /* CLONES */
 
 /*************************************************************************/

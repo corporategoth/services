@@ -15,6 +15,8 @@
 
 /**** channels.c ****/
 
+E Channel *chanlist;
+
 E void get_channel_stats(long *nrec, long *memuse);
 #ifdef OPERSERV
 E void send_channel_list(const char *user, const char *s);
@@ -25,16 +27,24 @@ E void chan_adduser(User *user, const char *chan);
 E void chan_deluser(User *user, Channel *c);
 E void do_cmode(const char *source, int ac, char **av);
 E void do_topic(const char *source, int ac, char **av);
-
+#ifdef CHANSERV
+E void do_chcmode(const char *who, const char *chan, const char *mode, const char *pram);
+#endif
 
 /**** chanserv.c ****/
 
 #ifdef CHANSERV
 E const char s_ChanServ[];
+E int def_access[];
+#ifdef NEWS
+E ChannelInfo *chanlists[256];
+#endif
 
 E void listchans(int count_only, const char *chan);
 E void get_chanserv_stats(long *nrec, long *memuse);
 
+E int get_access(User *user, ChannelInfo *ci);
+E int is_founder(User *user, NickInfo *ni, ChannelInfo *ci);
 E void chanserv(const char *source, char *buf);
 E void load_cs_dbase(void);
 E void save_cs_dbase(void);
@@ -46,6 +56,7 @@ E void record_topic(const char *chan);
 E void restore_topic(const char *chan);
 E int check_topiclock(const char *chan);
 E void expire_chans(void);
+E ChannelInfo *cs_findchan(const char *chan);
 #endif
 
 /**** helpserv.c ****/
@@ -70,7 +81,9 @@ E int update_timeout;
 E int debug;
 E int services_level;
 
+E int mode;
 E int quitting;
+E int terminating;
 E char *quitmsg;
 E char inbuf[BUFSIZE];
 E int servsock;
@@ -87,7 +100,7 @@ E void check_file_version(FILE *f, const char *filename);
 E void write_file_version(FILE *f, const char *filename);
 E int is_services_nick(const char *nick);
 E void introduce_users(const char *user);
-
+E int is_server(const char *nick);
 
 /**** memoserv.c ****/
 
@@ -98,15 +111,19 @@ E void get_memoserv_stats(long *nrec, long *memuse);
 
 E void memoserv(const char *source, char *buf);
 # ifdef MEMOS
+E MemoList *memolists[256];
 E void load_ms_dbase(void);
 E void save_ms_dbase(void);
 E void check_memos(const char *nick);
+E MemoList *find_memolist(const char *nick);
 # endif
 # ifdef NEWS
+E NewsList *newslists[256];
 E void load_news_dbase(void);
 E void save_news_dbase(void);
 E void check_newss(const char *chan, const char *source);
 E void expire_news(void);
+E NewsList *find_newslist(const char *chan);
 # endif
 #endif
 
@@ -145,6 +162,7 @@ E char *write_string(const char *s, FILE *f, const char *filename);
 
 #ifdef NICKSERV
 E const char s_NickServ[];
+E NickInfo *nicklists[256];
 
 E void listnicks(int count_only, const char *nick);
 E void get_nickserv_stats(long *nrec, long *memuse);
@@ -177,7 +195,9 @@ E int check_akill(const char *nick, const char *username, const char *host);
 E void expire_akill(void);
 #endif
 #ifdef CLONES
-E void check_clones(User *user);
+E Clone *clonelist;
+E void clone_add(const char *nick, const char *host);
+E void clone_del(const char *host);
 #endif
 #endif
 
@@ -215,13 +235,16 @@ E void disconn(int s);
 /**** users.c ****/
 
 E int usercnt, opcnt, maxusercnt;
+E User *userlist;
 
 #ifdef OPERSERV
 E void send_user_list(const char *user, const char *s);
 #endif
 E void get_user_stats(long *nusers, long *memuse);
 E User *finduser(const char *nick);
+E int findakill(const char *mask, const char *reason);
 
+E void change_user_nick(User *u, const char *nick);
 E void do_nick(const char *source, int ac, char **av);
 E void do_join(const char *source, int ac, char **av);
 E void do_part(const char *source, int ac, char **av);
