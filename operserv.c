@@ -52,13 +52,11 @@ static void do_set(const char *source);
 void operserv(const char *source, char *buf)
 {
     char *cmd;
-    char *s, *chan, *nick;
+    char *s, *chan, *nick, *serv;
     int i;
-
 
     log("%s: %s: %s", s_OperServ, source, buf);
     cmd = strtok(buf, " ");
-
 
     if (!cmd) {
 
@@ -73,16 +71,23 @@ void operserv(const char *source, char *buf)
     } else if (stricmp(cmd, "MODE") == 0) {
 
 	Channel *c;
+	User *u;
 	char l[16];
 	chan = strtok(NULL, " ");
+	if (chan[0]=='#') {
+	    strcpy(nick, chan);
+	    chan="";
+	}
 	s = strtok(NULL, "");
-	if (!chan)
+	if (!chan && !nick)
 	    return;
-        else if (!(c = findchan(chan)))
-            return;
-	else if (!s) {
-	    sprintf(l, " %d", c->limit);
-	    notice(s_OperServ, source, "%s +%s%s%s%s%s%s%s%s%s%s%s", c->name,
+
+	if (!nick) {
+	    if (!(c = findchan(chan)))
+		return;
+	    else if (!s) {
+		sprintf(l, " %d", c->limit);
+		notice(s_OperServ, source, "%s +%s%s%s%s%s%s%s%s%s%s%s", c->name,
 				(c->mode&CMODE_I) ? "i" : "",
 				(c->mode&CMODE_M) ? "m" : "",
 				(c->mode&CMODE_N) ? "n" : "",
@@ -94,8 +99,23 @@ void operserv(const char *source, char *buf)
 				(c->limit)        ?  l  : "",
 				(c->key)          ? " " : "",
 				(c->key)          ? c->key : "");
-	} else
-	    send_cmd(s_OperServ, "MODE %s %s", chan, s);
+	    } else
+		send_cmd(s_OperServ, "MODE %s %s", chan, s);
+	} else {
+	    if (!(u = finduser(nick)))
+		return;
+	    else if (!s)
+		notice(s_OperServ, source, "%s +%s%s%s%s%s", u->nick,
+				(u->mode&UMODE_O) ? "o" : "",
+				(u->mode&UMODE_I) ? "i" : "",
+				(u->mode&UMODE_S) ? "s" : "",
+				(u->mode&UMODE_W) ? "w" : "",
+				(u->mode&UMODE_G) ? "g" : "");
+#ifdef DAL_SERV
+	    else if (is_services_op(source))
+		send_cmd(s_OperServ, "SVSMODE %s %s", nick, s);
+#endif
+	}
 
     } else if (stricmp(cmd, "KICK") == 0) {
 
@@ -110,16 +130,19 @@ void operserv(const char *source, char *buf)
 
 	cmd = strtok(NULL, " ");
 
-	if (!cmd)
+	if (!cmd) {
 	    notice_list(s_OperServ, source, os_help);
-	else if (stricmp(cmd, "MODE") == 0)
+	    if (is_services_op(source))
+		notice_list(s_OperServ, source, os_sop_help);
+	    notice_list(s_OperServ, source, os_end_help);
+	} else if (stricmp(cmd, "MODE") == 0)
 	    notice_list(s_OperServ, source, mode_help);
 	else if (stricmp(cmd, "KICK") == 0)
 	    notice_list(s_OperServ, source, kick_help);
-	else if (stricmp(cmd, "AKILL") == 0)
+	else if (stricmp(cmd, "AKILL") == 0) {
 	    notice_list(s_OperServ, source, akill_help);
 #ifdef GLOBALNOTICER_ON
-	else if (stricmp(cmd, "GLOBAL") == 0) {
+	} else if (stricmp(cmd, "GLOBAL") == 0) {
 	    /* Information varies, so we need to do it manually. */
 	    notice(s_OperServ, source, "Syntax: GLOBAL \37message\37");
 	    notice(s_OperServ, source, "");
@@ -131,14 +154,27 @@ void operserv(const char *source, char *buf)
 #endif
 	} else if (stricmp(cmd, "STATS") == 0)
 	    notice_list(s_OperServ, source, stats_help);
-	else if (stricmp(cmd, "QUIT") == 0)
-	    notice_list(s_OperServ, source, quit_help);
-	else if (stricmp(cmd, "UPDATE") == 0)
-	    notice_list(s_OperServ, source, update_help);
 	else if (stricmp(cmd, "LISTSOPS") == 0)
 	    notice_list(s_OperServ, source, listsops_help);
+	else if (!is_services_op(source))
+	    notice(s_OperServ, source,
+			"No help available for command \2%s\2.", cmd);
+#ifdef DAL_SERV
+	else if (stricmp(cmd, "QLINE") == 0)
+	    notice_list(s_OperServ, source, qline_help);
+	else if (stricmp(cmd, "UNQLINE") == 0)
+	    notice_list(s_OperServ, source, unqline_help);
+	else if (stricmp(cmd, "NOOP") == 0)
+	    notice_list(s_OperServ, source, noop_help);
+	else if (stricmp(cmd, "KILL") == 0)
+	    notice_list(s_OperServ, source, kill_help);
+#endif
 	else if (stricmp(cmd, "JUPE") == 0)
 	    notice_list(s_OperServ, source, jupe_help);
+	else if (stricmp(cmd, "UPDATE") == 0)
+	    notice_list(s_OperServ, source, update_help);
+	else if (stricmp(cmd, "QUIT") == 0)
+	    notice_list(s_OperServ, source, quit_help);
 	else if (stricmp(cmd, "SHUTDOWN") == 0)
 	    notice_list(s_OperServ, source, shutdown_help);
 	else
@@ -257,6 +293,55 @@ void operserv(const char *source, char *buf)
 	notice(s_OperServ, source,
 		"Unrecognized command \2%s\2.  Type \"/msg %s HELP\" for help.",
 		cmd, s_OperServ);
+
+#ifdef DAL_SERV
+    } else if (stricmp(cmd, "QLINE") == 0) {
+
+	nick = strtok(NULL, " ");
+	s = strtok(NULL, "");
+	if(!nick)
+	    return;
+
+	if(!s) {
+	    send_cmd(NULL, "SQLINE %s", nick);
+	    wallops("\2%s\2 has been QUARENTINED by \2%s\2", nick, source);
+	} else {
+	    send_cmd(NULL, "SQLINE %s :%s", nick, s);
+	    wallops("\2%s\2 has been QUARENTINED by \2%s\2 for %s", nick, source, s);
+	}
+
+    } else if (stricmp(cmd, "UNQLINE") == 0) {
+
+	nick = strtok(NULL, " ");
+	if(!nick)
+	    return;
+
+	send_cmd(NULL, "UNSQLINE %s", nick);
+	wallops("\2%s\2 removed QUARENTINE for \2%s\2", source, nick);
+
+    } else if (stricmp(cmd, "NOOP") == 0) {
+
+	serv = strtok(NULL, " ");
+	s = strtok(NULL, "");
+	if (!s || (s!="+" && s!="-"))
+	    return;
+
+	send_cmd(NULL, "SVSNOOP %s :%s", serv, s);
+	if(s=="+")
+	     wallops("\2%s\2 QUARENTINED OPERS on \2%s\2", source, serv);
+	else
+	     wallops("\2%s\2 removed QUARENTINE for OPERS on \2%s\2", source, serv);
+
+    } else if (stricmp(cmd, "KILL") == 0) {
+
+	nick = strtok(NULL, " ");
+	s = strtok(NULL, "");
+	if (!s || !finduser(nick))
+	    return;
+
+	send_cmd(s_OperServ, "SVSKILL %s :%s", nick, s);
+
+#endif
 
     } else if (stricmp(cmd, "LISTIGNORE") == 0) {
 

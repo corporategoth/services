@@ -188,8 +188,10 @@ void process()
 #endif
 
     } else if (stricmp(cmd, "AWAY") == 0) {
+#ifdef GLOBALNOTICER_ON
 	FILE *f;
 	char buf[BUFSIZE];
+#endif
 
 	if (ac == 0 || *av[0] == 0) {	/* un-away */
 #ifndef SKELETON
@@ -204,6 +206,16 @@ void process()
 		    notice(s_GlobalNoticer, source, "%s", buf ? buf : " ");
 		}
 		fclose(f);
+	    }
+	    /* Send global message to user when they set back */
+	    if (is_oper(source)) {
+		if (f = fopen(OPER_MSG, "r")) {
+		    while (fgets(buf, sizeof(buf), f)) {
+			buf[strlen(buf)-1] = 0;
+			notice(s_GlobalNoticer, source, "%s", buf ? buf : " ");
+		    }
+		    fclose(f);
+		}
 	    }
 #endif
 	}
@@ -308,6 +320,7 @@ void process()
 
     } else if (stricmp(cmd, "PRIVMSG") == 0) {
 
+	char buf[BUFSIZE];
 	if (ac != 2)
 	    return;
 
@@ -341,6 +354,34 @@ void process()
 	    helpserv("IrcIIHelp", source, s);
 	    free(s);
 	}
+#ifdef DAL_SERV
+	sprintf(buf, "%s@%s", s_OperServ, SERVER_NAME);
+	if (stricmp(av[0], buf) == 0) {
+	    if (is_oper(source))
+		operserv(source, av[1]);
+	    else
+		notice(s_OperServ, source, "Access denied.");
+	}
+	sprintf(buf, "%s@%s", s_NickServ, SERVER_NAME);
+	if (stricmp(av[0], buf) == 0)
+	    nickserv(source, av[1]);
+	sprintf(buf, "%s@%s", s_ChanServ, SERVER_NAME);
+	if (stricmp(av[0], buf) == 0)
+	    chanserv(source, av[1]);
+	sprintf(buf, "%s@%s", s_MemoServ, SERVER_NAME);
+	if (stricmp(av[0], buf) == 0)
+	    memoserv(source, av[1]);
+	sprintf(buf, "%s@%s", s_HelpServ, SERVER_NAME);
+	if (stricmp(av[0], buf) == 0)
+	    helpserv(s_HelpServ, source, av[1]);
+	sprintf(buf, "%s@%s", "ircIIhelp", SERVER_NAME);
+	if (stricmp(av[0], buf) == 0) {
+	    char *s = smalloc(strlen(av[1]) + 7);
+	    sprintf(s, "ircII %s", av[1]);
+	    helpserv("IrcIIHelp", source, s);
+	    free(s);
+	}
+#endif
 
 	/*Add to ignore list if the command took a significant amount of time.*/
 	if (allow_ignore) {

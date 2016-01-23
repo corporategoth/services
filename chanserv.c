@@ -15,7 +15,17 @@ ChannelInfo *chanlists[256];
 ChannelInfo *cs_findchan(const char *chan);
 int get_access(User *user, ChannelInfo *ci);
 
-static def_access[] = { 0, 5, 10, 15, 20, 25, 30 };
+/* dev_access - replacing levels in rest of file :)
+ * 0. 0  = User Level (normal)
+ * 1. 5  = Auto-Voice
+ * 2. 10 = Auto-Op
+ * 3. 15 = Master (add memos, etc)
+ * 4. 20 = Super-Master
+ * 5. 25 = Co-Founder (change sets, etc)
+ * 6. 30 = Founder
+ * 7. -1 = NO ChanServ/MemoServ access
+ */
+int def_access[] = { 0, 5, 10, 15, 20, 25, 30, -1 };
 
 const char s_ChanServ[] = "ChanServ";
 
@@ -793,14 +803,14 @@ int check_valid_op(User *user, const char *chan, int serverop)
 	return 0;
     }
 
-    if (serverop && get_access(user, ci) < 1) {
+    if (serverop && get_access(user, ci) <= def_access[0]) {
 	notice(s_ChanServ, user->nick,
 		"This channel has been registered with %s.", s_ChanServ);
 	send_cmd(s_ChanServ, "MODE %s -o %s", chan, user->nick);
 	return 0;
     }
 
-    if (get_access(user, ci) < (ci->flags & CI_SECUREOPS ? 1 : 0)) {
+    if (get_access(user, ci) <= (ci->flags & CI_SECUREOPS ? def_access[0] : def_access[7])) {
 #if 0
 	notice(s_ChanServ, user->nick,
 		"You are not allowed chanop status on channel %s.", chan);
@@ -831,8 +841,8 @@ int check_should_op(User *user, const char *chan)
 	    return 0;
     }
 
-    if (get_access(user, ci) >= 5) {
-	if (get_access(user, ci) >= 10)
+    if (get_access(user, ci) >= def_access[1]) {
+	if (get_access(user, ci) >= def_access[2])
 	    send_cmd(s_ChanServ, "MODE %s +o %s", chan, user->nick);
 	else
 	    send_cmd(s_ChanServ, "MODE %s +v %s", chan, user->nick);
@@ -902,7 +912,7 @@ int check_kick(User *user, const char *chan)
     if (!(ci->flags & CI_RESTRICTED))
 	return 0;
 
-    if (get_access(user, ci) < (ci->flags&CI_SECUREOPS ? 1 : 0)) {
+    if (get_access(user, ci) <= (ci->flags&CI_SECUREOPS ? def_access[0] : def_access[7])) {
 	av[0] = sstrdup(chan);
 	av[1] = "+b";
 	av[2] = create_mask(user);
@@ -1461,7 +1471,7 @@ static void do_set(const char *source)
 
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!(u = finduser(source)) || get_access(u, ci) < 25) {
+    } else if (!(u = finduser(source)) || get_access(u, ci) < def_access[5]) {
 
 	notice(s_ChanServ, source, "Access denied.");
 
@@ -1989,7 +1999,7 @@ static void do_access(const char *source)
 
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!(u = finduser(source)) || ((ulev = get_access(u, ci)) <= 0) ||
+    } else if (!(u = finduser(source)) || ((ulev = get_access(u, ci)) <= def_access[0]) ||
 					(s && (level = atoi(s)) >= ulev)) {
 	notice(s_ChanServ, source, "Access denied.");
 
@@ -2179,7 +2189,7 @@ static void do_akick(const char *source)
 
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
-    } else if (!(u = finduser(source)) || get_access(u, ci) < 15) {
+    } else if (!(u = finduser(source)) || get_access(u, ci) < def_access[3]) {
 
 	notice(s_ChanServ, source, "Access denied.");
 
@@ -2221,9 +2231,9 @@ static void do_akick(const char *source)
 	}
 
 
-      /* Find @*, @*.*, @*.*.*, etc. and dissalow if !>20 */
+      /* Find @*, @*.*, @*.*.*, etc. and dissalow if !>25 */
     for(i=strlen(mask)-1;mask[i]=='!' || mask[i]=='*' || mask[i]=='?' || mask[i]=='.' ;i--) ;
-    if(mask[i]=='@' && (get_access(u, ci) < 25))
+    if(mask[i]=='@' && (get_access(u, ci) < def_access[5]))
 	notice(s_ChanServ, source, "@* AKICK's are not allowed!!");
     else {
 	++ci->akickcount;
@@ -2428,7 +2438,7 @@ static void do_info(const char *source)
 		need_comma = 1;
 	    }
 	    if (ci->flags & CI_SECURE) {
-		printf("%sSecure", need_comma ? commastr : "");
+		end += printf(end, "%sSecure", need_comma ? commastr : "");
 		need_comma = 1;
 	    }
 	}
@@ -2534,9 +2544,9 @@ static void do_invite(const char *source)
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
 #ifdef CS_IRCOP_OVERRIDE
-    else if ((!u || get_access(u, ci) < 1) && !is_oper(source))
+    else if ((!u || get_access(u, ci) <= def_access[0]) && !is_oper(source))
 #else
-    else if ((!u || get_access(u, ci) < 1))
+    else if ((!u || get_access(u, ci) <= def_access[0]))
 #endif
 	    notice(s_ChanServ, source, "Access denied.");
 
@@ -2578,9 +2588,9 @@ static void do_voice(const char *source)
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
 #ifdef CS_IRCOP_OVERRIDE
-    else if ((!u || (ulev = get_access(u, ci)) < 5) && !is_oper(source))
+    else if ((!u || (ulev = get_access(u, ci)) < def_access[1]) && !is_oper(source))
 #else
-    else if ((!u || (ulev = get_access(u, ci)) < 5))
+    else if ((!u || (ulev = get_access(u, ci)) < def_access[1]))
 #endif
 	    notice(s_ChanServ, source, "Access denied.");
 
@@ -2622,9 +2632,9 @@ static void do_devoice(const char *source)
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
 #ifdef CS_IRCOP_OVERRIDE
-    else if ((!u || (ulev = get_access(u, ci)) < 1) && !is_oper(source))
+    else if ((!u || (ulev = get_access(u, ci)) <= def_access[0]) && !is_oper(source))
 #else
-    else if ((!u || (ulev = get_access(u, ci)) < 1))
+    else if ((!u || (ulev = get_access(u, ci)) <= def_access[0]))
 #endif
 	notice(s_ChanServ, source, "Access denied.");
 
@@ -2664,9 +2674,9 @@ static void do_op(const char *source)
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
 #ifdef CS_IRCOP_OVERRIDE
-    else if ((!u || (ulev = get_access(u, ci)) < 10) && !is_oper(source))
+    else if ((!u || (ulev = get_access(u, ci)) < def_access[2]) && !is_oper(source))
 #else
-    else if ((!u || (ulev = get_access(u, ci)) < 10))
+    else if ((!u || (ulev = get_access(u, ci)) < def_access[2]))
 #endif
 	    notice(s_ChanServ, source, "Access denied.");
 
@@ -2708,9 +2718,9 @@ static void do_deop(const char *source)
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
 #ifdef CS_IRCOP_OVERRIDE
-    else if ((!u || (ulev = get_access(u, ci)) < 1) && !is_oper(source))
+    else if ((!u || (ulev = get_access(u, ci)) <= def_access[0]) && !is_oper(source))
 #else
-    else if ((!u || (ulev = get_access(u, ci)) < 1))
+    else if ((!u || (ulev = get_access(u, ci)) <= def_access[0]))
 #endif
 	notice(s_ChanServ, source, "Access denied.");
 
@@ -2763,9 +2773,9 @@ static void do_unban(const char *source)
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
 #ifdef CS_IRCOP_OVERRIDE
-    else if ((!u || get_access(u, ci) < 1) && !is_oper(source))
+    else if ((!u || get_access(u, ci) <= def_access[0]) && !is_oper(source))
 #else
-    else if ((!u || get_access(u, ci) < 1))
+    else if ((!u || get_access(u, ci) <= def_access[0]))
 #endif
     	    notice(s_ChanServ, source, "Access denied.");
 
@@ -2817,9 +2827,9 @@ static void do_clear(const char *source)
 	notice(s_ChanServ, source, "Channel %s is not registered.", chan);
 
 #ifdef CS_IRCOP_OVERRIDE
-    else if ((!u || get_access(u, ci) < 15) && !is_services_op(source)) {
+    else if ((!u || get_access(u, ci) < def_access[3]) && !is_services_op(source)) {
 #else
-    else if ((!u || get_access(u, ci) < 15)) {
+    else if ((!u || get_access(u, ci) < def_access[3])) {
 #endif
 	notice(s_ChanServ, source, "Access denied.");
 

@@ -1,14 +1,15 @@
 Syntax: SET channel option parameters
 
-Allows the channel founder to set various channel options
-and other information.  The founder must use the IDENTIFY
-command before using SET.
+Allows the channel founder or level 25 to set various
+channel options and other information.  The seter must
+use the IDENTIFY command before using SET.
 
 Available options:
 
-    FOUNDER     Set the founder of a channel
-    PASSWORD    Set the founder password
+    FOUNDER     Set the founder of a channel (founder)
+    PASSWORD    Set the founder password (founder)
     DESC        Set the channel description
+    URL         Set the channel web page (INFO Display)
     TOPIC       Change the topic on a channel
     MLOCK       Lock channel modes on or off
     KEEPTOPIC   Retain topic when channel is not in use
@@ -18,5 +19,5 @@ Available options:
     RESTRICTED  Restricts access to channel
     SECURE      Activate ChanServ security features
 
-Type /msg ChanServ HELP option for more information on a
-particular option.
+Type /msg ChanServ HELP option for more information on
+a particular option.

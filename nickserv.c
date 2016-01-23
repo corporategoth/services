@@ -449,6 +449,9 @@ int validate_user(User *u)
 	if (ni->last_realname)
 	    free(ni->last_realname);
 	ni->last_realname = sstrdup(u->realname);
+#ifdef DAL_SERV
+	send_cmd(s_NickServ, "SVSMODE %s +r", u->nick);
+#endif
 	return 1;
     }
 
@@ -714,10 +717,47 @@ static int delnick(NickInfo *ni)
 static void collide(NickInfo *ni)
 {
     char *av[2];
+    char newnick[NICKMAX];
+    int success;
 
     del_timeout(ni, TO_COLLIDE);
-    send_cmd(s_NickServ, "KILL %s :%s (Nick kill enforced)",
+#ifdef DAL_SERV
+    for(success=0, strcpy(newnick, ni->nick);
+		strlen(newnick)<NICKMAX && success!=1;) {
+	sprintf(newnick, "%s_", newnick);
+	if(!(finduser(newnick)))
+	    success=1;
+    }
+    if(success!=1) {
+	for(success=0, strcpy(newnick, ni->nick);
+		    strlen(newnick)<NICKMAX && success!=1;) {
+	    sprintf(newnick, "%s_", newnick);
+	    if(!(finduser(newnick)))
+		success=1;
+	}
+    }
+    if(success!=1) {
+	for(success=0, strcpy(newnick, ni->nick);
+		    strlen(newnick)<NICKMAX && success!=1;) {
+	    sprintf(newnick, "%s_", newnick);
+	    if(!(finduser(newnick)))
+		success=1;
+	}
+    }
+
+    if(success!=1)
+	send_cmd(s_NickServ, "KILL %s :%s (Nick kill enforced)",
     		ni->nick, s_NickServ);
+    else {
+	send_cmd(s_NickServ, "SVSNICK %s %s :%lu",
+    		ni->nick, newnick, time(NULL));
+	notice(s_NickServ, newnick,
+		"Your nick has been foribly changed (Nick protection enforced)");
+    }
+#else
+    send_cmd(s_NickServ, "KILL %s :%s (Nick kill enforced)",
+    	ni->nick, s_NickServ);
+#endif
     send_cmd(NULL, "NICK %s %d 1 enforcer %s %s :%s Enforcement",
 		ni->nick, time(NULL), services_host, server_name, s_NickServ);
     av[0] = ni->nick;
@@ -954,6 +994,9 @@ static void do_identify(const char *source)
 	}
 	notice(s_NickServ, source,
 		"Password accepted - you are now recognized.");
+#ifdef DAL_SERV
+	send_cmd(s_NickServ, "SVSMODE %s +r", u->nick);
+#endif
 	if (!(ni->flags & NI_RECOGNIZED))
 	    check_memos(source);
 

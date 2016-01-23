@@ -6,6 +6,13 @@
  * details.
  */
 
+/* Its simple ...
+ * #define to activate
+ * #undef  to deactivate
+ * I dont recommend you undef something with a value after it,
+ * just change the value, stuff without values is for u to decide.
+ */
+
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -29,7 +36,7 @@
 #define	HELPSERV_ON
 #define	IRCIIHELP_ON
 #define	MEMOSERV_ON
-#define OPERSERV_ON
+#define	OPERSERV_ON
 #define	DEVNULL_ON
 #define	GLOBALNOTICER_ON
 
@@ -48,6 +55,9 @@
 
 /* File for message to user upon logon */
 #define LOGON_MSG	"services.msg"
+
+/* File for message to user upon /oper */
+#define OPER_MSG	"services.omsg"
 
 /* Database filenames */
 #define NICKSERV_DB	"nick.db"

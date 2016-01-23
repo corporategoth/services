@@ -188,8 +188,10 @@ void do_nick(const char *source, int ac, char **av)
 
     if (!*source) {
 	/* This is a new user; create a User structure for it. */
+#ifdef GLOBALNOTICER_ON
 	FILE *f;
 	char buf[BUFSIZE];
+#endif
 
 	if (debug)
 	    log("debug: new user: %s", av[0]);
@@ -393,6 +395,11 @@ void do_umode(const char *source, int ac, char **av)
     char *s;
     int add = 1;		/* 1 if adding modes, 0 if deleting */
 
+#ifdef GLOBALNOTICER_ON
+    FILE *f;
+    char buf[BUFSIZE];
+#endif
+
     if (stricmp(source, av[0]) != 0) {
 	log("user: MODE %s %s from different nick %s!", av[0], av[1], source);
 	wallops("%s attempted to change mode %s for %s", source, av[1], av[0]);
@@ -419,6 +426,16 @@ void do_umode(const char *source, int ac, char **av)
 		if (add) {
 		    user->mode |= UMODE_O;
 		    ++opcnt;
+#ifdef GLOBALNOTICER_ON
+		    /* Send global message to user when they oper up */
+		    if (f = fopen(OPER_MSG, "r")) {
+			while (fgets(buf, sizeof(buf), f)) {
+			    buf[strlen(buf)-1] = 0;
+			    notice(s_GlobalNoticer, av[0], "%s", buf ? buf : " ");
+			}
+			fclose(f);
+		    }
+#endif
 		} else {
 		    user->mode &= ~UMODE_O;
 		    --opcnt;

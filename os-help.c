@@ -1,29 +1,70 @@
 /* Help text for OperServ */
 
 static const char *os_help[] = {
-"OperServ commands:",
-"   \2MODE \37channel\37 \37modes\37\2 -- Change a channel's modes",
-"   \2KICK \37channel\37 \37nick\37 \37reason\37\2 -- Kick a user from a channel",
-"   \2AKILL {ADD|DEL|LIST} [\37mask\37 [\37reason\37]]\2 -- Manipulate the AKILL list",
-"   \2GLOBAL \37message\37\2 -- Send a message to all users",
+"OperServ commands (IrcOPs):",
+"   \2MODE\2 {\37channel\37|\37nick\37} [\37modes\37] -- See/Change a channel/nick's modes",
+"   \2KICK\2 \37channel\37 \37nick\37 \37reason\37 -- Kick a user from a channel",
+"   \2AKILL\2 {\37ADD\37|\37DEL\37|\37LIST\37} [\37mask\37 [\37reason\37]] -- Manipulate the AKILL list",
+"   \2GLOBAL\2 \37message\37 -- Send a message to all users",
 "   \2STATS\2 -- status of Services and network",
 "   \2LISTSOPS\2 -- Show hardcoded Service Operators",
 "",
+NULL
+};
+#ifdef DAL_SERV
+static const char *os_sop_help[] = {
+"OperServ commands (Service Admins):",
+"   \2KILL\2 \37user\37 \37reason\37 -- Kill user with no indication of IrcOP",
+"   \2QLINE\2 \37nick\37 [\37reason\37] -- Quarentine a nick (disable its use)",
+"   \2UNQLINE\2 \37nick\37 -- Remove nick quarentine",
+"   \2NOOP\2 \37server\37 {\37+\37|\37-\37} -- Restrict server's Operaters to local",
+"   \2JUPE\2 \37server\37 -- Make server appear linked",
+"   \2UPDATE\2 -- Update *Serv databases (before QUIT)",
+"   \2QUIT\2 -- Terminate services without database save",
+"   \2SHUTDOWN\2 -- Same as UPDATE+QUIT",
+"",
+NULL
+};
+#else
+static const char *os_sop_help[] = {
+"OperServ commands (Service Admins):",
+"   \2JUPE\2 \37server\37 -- Make server appear linked",
+"   \2UPDATE\2 -- Update *Serv databases (before QUIT)",
+"   \2QUIT\2 -- Terminate services without database save",
+"   \2SHUTDOWN\2 -- Same as UPDATE+QUIT",
+"",
+NULL
+};
+#endif
+static const char *os_end_help[] = {
 "\2Notice:\2 All commands sent to OperServ are logged!",
 NULL
 };
 
 /*************************************************************************/
 
+#ifdef DAL_SERV
 static const char *mode_help[] = {
-"Syntax: MODE \37channel\37 \37modes\37",
+"Syntax: MODE {\37channel\37|\37nick\37} [\37modes\37]",
 "",
-"Allows IRCops to set channel modes for any channel.",
+"Allows IRCops to see channel modes for any channel",
+"or nick, and set them for any channel.",
+"Service Admins may also set a nick's modes.",
 "Parameters are the same as for the standard /MODE",
 "command.",
 NULL
 };
-
+#else
+static const char *mode_help[] = {
+"Syntax: MODE {\37channel\37|\37nick\37} [\37modes\37]",
+"",
+"Allows IRCops to see channel modes for any channel",
+"or nick, and set them for any channel.",
+"Parameters are the same as for the standard /MODE",
+"command.",
+NULL
+};
+#endif
 /*************************************************************************/
 
 static const char *kick_help[] = {
@@ -52,6 +93,7 @@ static const char *akill_help[] = {
 " ",
 "AKILL ADD adds the given user@host mask to the AKILL",
 "list for the given reason (which \2must\2 be given).",
+"Only Service Admins may give a user@* mask.",
 "AKILL DEL removes the given mask from the AKILL list if it",
 "is present.  AKILL LIST shows all current AKILLs; if the",
 "optional mask is given, the list is limited to those",
@@ -138,3 +180,49 @@ static const char *jupe_help[] = {
 "Limited to \2Services Admin\2.",
 NULL
 };
+#ifdef DAL_SERV
+/*************************************************************************/
+static const char *qline_help[] = {
+"Syntax: \2QLINE\2 \37nick\37 [\37reason\37]",
+"",
+"Sends a nick QUARENTINE line to all servers that",
+"forbids anyone but IrcOP's from using the nick.",
+"Limited to \2Services Admin\2.",
+NULL
+};
+/*************************************************************************/
+static const char *unqline_help[] = {
+"Syntax: \2UNQLINE\2 \37nick\37",
+"",
+"Removes a nick QUARENTINE set by QLINE, thus",
+"re-enabling the nick to be used by all users."
+"Limited to \2Services Admin\2.",
+NULL
+};
+/*************************************************************************/
+static const char *noop_help[] = {
+"Syntax: \2NOOP\2 \37server\37 {\37+\37|\37-\37}",
+"",
+"Forces \2server\2's opers to all act as LOCAL OPERS",
+"essentially the equivilant of a server Q: line in the",
+"ircd.conf.  This should ONLY be used in EXTREME cases,",
+"as this will not only render the operators on the server"
+"powerless outside of it, it will also remove their access"
+"to OperServ and any other special operator functions."
+"\2+\2 will set this (ie. limit the server), and \2-\2 remove it."
+"Limited to \2Services Admin\2.",
+NULL
+};
+/*************************************************************************/
+static const char *kill_help[] = {
+"Syntax: \2KILL\2 \37user\37 \37reason\37",
+"",
+"This kills a message with any message you wish, without",
+"the SignOff: user (Killed (IrcOP (Reason))) or even a",
+"\"You have been killed by IrcOP\" message on the users",
+"status screeen.  It is just as if the server has dumped",
+"the user for something, eg. Ping Timeout."
+"Limited to \2Services Admin\2.",
+NULL
+};
+#endif

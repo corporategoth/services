@@ -8,10 +8,11 @@ with ChanServ.
 
 MemoServ's commands include:
 
-    SEND   Send a memo to a nick/channel
-    LIST   List all of your or a channel's memos
-    READ   Read a memo
-    DEL    Delete a memo (or all memos)
+    SEND    Send a memo to a nick/channel
+    LIST    List all of your or a channel's memos
+    READ    Read a memo (or all memos)
+    FORWARD Forward a memo to a nick/channel
+    DEL     Delete a memo (or all memos)
 
 Type /msg MemoServ HELP command for help on any of the
 above commands.

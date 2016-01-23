@@ -1,7 +1,16 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
-1997/??/?? .4	Added support for DAL4.4.15+ servers.
+1997/??/?? .5	Implemented DAL4.4.15+ Services Support, Including:
+		    Killing users without a Killed (IrcOp (reason))
+		    Server and Nick quarentining via. OperServ
+		    Setting of nick's modes with MODE command.
+		    CHANGE nick instead of KILL it on nick protection
+		SOP's get help for their commands in /msg OperServ HELP
+		Memo Forwarding To/From Nick/Channel (in any combo)
+		Message to users when they /oper (services.omsg)
+		Made use of the till now unused def_access in chanserv.c
+1997/10/30 .4	Added support for DAL4.4.15+ servers.
 		Moved up all chanserv levels by 5 - 5 is now auto-voice.
 		Added /msg operserv listsops (FINALLY!)
 		SOPS now need to be /oper'd to be SOPS (oops)
@@ -19,7 +28,7 @@ Version 3.0 (PreZ <prez@antisocial.com>)
 1997/09/15 .1	Only Lvl 20 or sender can delete channel news
 		Fixed bug in NickServ that Mis-Saved URL/NICK fields
 1997/09/15 .0	Services now respawn if /kill'd
-		Message to users when logon added
+		Message to users when logon added (services.msg)
 		Disabled @* (and @*.*, etc) AKILLS except for SOPS
 		Disabled @* (and @*.*, etc) AKICKS except for Level 20's
 		Created FILE_VERSION 3 (autoconverts from 2)

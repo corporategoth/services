@@ -697,5 +697,7 @@ echo "done."
 
 ###########################################################################
 
-echo 'All done!  Now type "make" to compile Services.'
+echo 'All done!'
+echo 'Dont forget to edit the config.h file to your own
+echo 'specifications! - type "make" to compile Services.'
 exit 0

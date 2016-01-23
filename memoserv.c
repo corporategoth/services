@@ -15,10 +15,10 @@ const char s_MemoServ[] = "MemoServ";
 
 #include "ms-help.c"
 
-
 extern ChannelInfo *chanlists[256];
 extern ChannelInfo *cs_findchan(const char *chan);
 extern int get_access(User *user, ChannelInfo *ci);
+extern int def_access[];
 
 static MemoList *find_memolist(const char *nick);
 static void alpha_insert_memolist(MemoList *ml);
@@ -30,6 +30,8 @@ static void del_newslist(NewsList *nl);
 
 static void do_help(const char *source);
 static void do_send(const char *source);
+static void do_forward(const char *source);
+static void do_fwd2(const char *source, const char *origin, char *arg, const char *intext);
 static void do_list(const char *source);
 static void do_read(const char *source);
 static void do_del(const char *source);
@@ -119,6 +121,9 @@ void memoserv(const char *source, char *buf)
 
     } else if (stricmp(cmd, "READ") == 0) {
 	do_read(source);
+
+    } else if (stricmp(cmd, "FORWARD") == 0) {
+	do_forward(source);
 
     } else if (stricmp(cmd, "DEL") == 0) {
 	do_del(source);
@@ -507,7 +512,7 @@ static void do_send(const char *source)
       else if (!(ci = cs_findchan(arg)))
 	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
 
-      else if (!(u = finduser(source)) || get_access(u, ci) < 15)
+      else if (!(u = finduser(source)) || get_access(u, ci) < def_access[3])
 	notice(s_MemoServ, source, "Access denied.");
 
       else {
@@ -617,7 +622,7 @@ static void do_list(const char *source)
 
 	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
 
-      } else if (!(u = finduser(source)) || get_access(u, ci) < 1) {
+      } else if (!(u = finduser(source)) || get_access(u, ci) <= def_access[0]) {
 
 	notice(s_MemoServ, source, "Access denied.");
 
@@ -687,16 +692,16 @@ static void do_read(const char *source)
 		strcpy(numstr,arg2);
     }
     if (!arg) {
-	notice(s_MemoServ, source, "Syntax: \2READ \37num\37");
-	notice(s_MemoServ, source, "Syntax: \2READ channel \37num\37");
+	notice(s_MemoServ, source, "Syntax: \2READ \37num|all\37");
+	notice(s_MemoServ, source, "Syntax: \2READ channel \37num|all\37");
       notice(s_MemoServ, source,
 		"\2/msg %s HELP READ\2 for more information.", s_MemoServ);
     
     } else if (!numstr || ((num = atoi(numstr)) <= 0 && stricmp(numstr,"ALL") != 0)) {
       if(arg[0]!='#')
-	notice(s_MemoServ, source, "Syntax: \2READ \37num\37");
+	notice(s_MemoServ, source, "Syntax: \2READ \37num|all\37");
       else
-	notice(s_MemoServ, source, "Syntax: \2READ channel \37num\37");
+	notice(s_MemoServ, source, "Syntax: \2READ channel \37num|all\37");
       notice(s_MemoServ, source,
 		"\2/msg %s HELP READ\2 for more information.", s_MemoServ);
 
@@ -709,7 +714,7 @@ static void do_read(const char *source)
 
 	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
 
-      } else if (!(u = finduser(source)) || get_access(u, ci) < 0) {
+      } else if (!(u = finduser(source)) || get_access(u, ci) < def_access[0]) {
 
 	notice(s_MemoServ, source, "Access denied.");
 
@@ -794,6 +799,124 @@ static void do_read(const char *source)
     }
 }
 
+/* Forward a memo. */
+
+static void do_forward(const char *source)
+{
+    MemoList *ml;
+    NewsList *nl;
+    NickInfo *ni;
+    Memo *m;
+    char *arg = strtok(NULL, " ");
+    char *arg2 = strtok(NULL, " ");
+    char *arg3 = strtok(NULL, "");
+    char *numstr;
+    int num;
+
+    if (arg) {
+	if (arg2) {
+	    if (!arg3)
+		strcpy(numstr,arg);
+	    else
+		strcpy(numstr,arg2);
+	}
+    }
+    if (!arg2) {
+	notice(s_MemoServ, source, "Syntax: \2FORWARD \37num\37 user|channel");
+	notice(s_MemoServ, source, "Syntax: \2FORWARD channel \37num\37 user|channel");
+      notice(s_MemoServ, source,
+		"\2/msg %s HELP FORWARD\2 for more information.", s_MemoServ);
+    
+    } else if (!numstr || (num = atoi(numstr)) <= 0) {
+      if(arg[0]!='#')
+	notice(s_MemoServ, source, "Syntax: \2FORWARD \37num\37 user|channel");
+      else
+	notice(s_MemoServ, source, "Syntax: \2FORWARD channel \37num\37 user|channel");
+      notice(s_MemoServ, source,
+		"\2/msg %s HELP FORWARD\2 for more information.", s_MemoServ);
+
+    } else if (arg[0]=='#') {
+
+    ChannelInfo *ci;
+    User *u;
+
+      if (!arg3) {
+
+	notice(s_MemoServ, source, "Syntax: \2FORWARD channel \37num\37 user|channel");
+	notice(s_MemoServ, source,
+		"\2/msg %s HELP FORWARD\2 for more information.", s_MemoServ);
+
+      } else if (!(ci = cs_findchan(arg))) {
+
+	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
+
+      } else if (!(u = finduser(source)) || get_access(u, ci) < def_access[0]) {
+
+	notice(s_MemoServ, source, "Access denied.");
+
+      } else if (!(nl = find_newslist(arg))) {
+	notice(s_MemoServ, source, "There is no news for %s.", arg);
+
+      } else {
+
+	    int i;
+	    for (i = 0; i < nl->n_newss; ++i) {
+		if (nl->newss[i].number == num)
+		    break;
+	    }
+	    if (i >= nl->n_newss) {
+	        notice(s_MemoServ, source, "News article %d does not exist for %s!", num, arg);
+	    } else {
+		char s[NICKMAX+CHANMAX+2];
+		char whofrom[NICKMAX];
+		m = &nl->newss[i];
+		strcat(s, m->sender);
+		strcat(s, "/");
+		strcat(s, ci->name);
+		strcat(whofrom, source);
+		do_fwd2(whofrom, s, arg3, m->text);
+	    }
+
+      }
+    } else {
+      if (!(ni = findnick(source))) {
+	notice(s_MemoServ, source, "Your nick is not registered.  Type"
+			"\2/msg %s HELP\2 for information on registering"
+			"your nickname.", s_NickServ);
+
+      } else if (!(ni->flags & (NI_RECOGNIZED | NI_IDENTIFIED))) {
+	notice(s_MemoServ, source, "Permission denied.");
+
+      } else if (!(ni->flags & NI_IDENTIFIED)) {
+	notice(s_MemoServ, source, "Identification required for that command."
+			"  Type \2/msg %s IDENTIFY \37password\37\2 to "
+			"access your memos.", s_NickServ);
+
+      } else if (!(ml = find_memolist(source))) {
+	notice(s_MemoServ, source, "You have no memos.");
+
+      } else {
+
+	    int i;
+	    for (i = 0; i < ml->n_memos; ++i) {
+		if (ml->memos[i].number == num)
+		    break;
+	    }
+	    if (i >= ml->n_memos) {
+		notice(s_MemoServ, source, "Memo %d does not exist!", num);
+	    } else {
+		char whofrom[NICKMAX];
+		strcpy(whofrom, source);
+		m = &ml->memos[i];
+		if (arg3)
+		    do_fwd2(whofrom, m->sender, arg3, m->text);
+		else
+		    do_fwd2(whofrom, m->sender, arg2, m->text);
+	    }
+      }
+    }
+}
+
 /*************************************************************************/
 
 /* Delete a memo. */
@@ -840,7 +963,7 @@ static void do_del(const char *source)
 
 	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
 
-      } else if (!(u = finduser(source)) || get_access(u, ci) < 15) {
+      } else if (!(u = finduser(source)) || get_access(u, ci) < def_access[3]) {
 
 	notice(s_MemoServ, source, "Access denied.");
 
@@ -855,7 +978,7 @@ static void do_del(const char *source)
 		    break;
 	    }
 	    if (i < nl->n_newss) {
-		if((stricmp(nl->newss[i].sender, source) == 0) || (get_access(u, ci) >= 25)) {
+		if((stricmp(nl->newss[i].sender, source) == 0) || (get_access(u, ci) >= def_access[5])) {
 		    free(nl->newss[i].text); /* Deallocate news text newsry */
 		    --nl->n_newss;		 /* One less news now */
 		    if (i < nl->n_newss)	 /* Move remaining newss down a slot */
@@ -872,7 +995,7 @@ static void do_del(const char *source)
 	    /* Delete all newss.  This requires freeing the newsry holding
 	     * the text of each news and flagging that there are no newss
 	     * left. */
-	     if (get_access(u, ci) < 25)
+	     if (get_access(u, ci) < def_access[5])
 	         notice(s_MemoServ, source, "Access denied.");
 	     else {
 	       for (i = 0; i < nl->n_newss; ++i)
@@ -966,5 +1089,119 @@ void expire_news()
     }
 }
 
+static void do_fwd2(const char *source, const char *origin, char *arg, const char *intext) {
+    MemoList *ml;
+    NewsList *nl;
+    NickInfo *ni;
+    Memo *m;
+    char *text;
+
+    char *Torigin = sstrdup(origin);
+    char *Tintext = sstrdup(intext);
+    sprintf(text, "[FWD: %s] %s\0", Torigin, Tintext);
+    free(Torigin);
+    free(Tintext);
+
+    if (arg[0]=='#') {
+
+      ChannelInfo *ci;
+      User *u;
+
+      if (!(ni = findnick(source))) {
+	notice(s_MemoServ, source, "Your nick is not registered.  Type"
+			"\2/msg %s HELP\2 for information on registering"
+			"your nickname.", s_NickServ);
+
+      } else if (!(ni->flags & (NI_RECOGNIZED | NI_IDENTIFIED)))
+	notice(s_MemoServ, source, "Permission denied.");
+
+      else if (!(ci = cs_findchan(arg)))
+	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
+
+      else if (!(u = finduser(source)) || get_access(u, ci) < def_access[3])
+	notice(s_MemoServ, source, "Access denied.");
+
+      else {
+
+	nl = find_newslist(arg);
+	if (!nl) {
+	    nl = scalloc(sizeof(NewsList), 1);
+	    strscpy(nl->chan, arg, CHANMAX);
+	    alpha_insert_newslist(nl);
+	}
+	++nl->n_newss;
+	nl->newss = srealloc(nl->newss, sizeof(Memo) * nl->n_newss);
+	m = &nl->newss[nl->n_newss-1];
+	strscpy(m->sender, source, CHANMAX);
+	if (nl->n_newss > 1) {
+	    m->number = m[-1].number + 1;
+	    if (m->number < 1) {
+		int i;
+		for (i = 0; i < nl->n_newss; ++i)
+		    nl->newss[i].number = i+1;
+	    }
+	} else
+	    nl->newss[nl->n_newss-1].number = 1;
+	m->time = time(NULL);
+	m->text = sstrdup(text);
+	notice(s_MemoServ, source, "News sent to %s.", arg);
+	if (findchan(arg)) {
+	    notice(s_MemoServ, arg, "There is new news for %s (#%d) from %s.",
+			arg, m->number, source);
+	    notice(s_MemoServ, arg, "Type \2/msg %s READ %s %d\2 to read it.",
+			s_MemoServ, arg, m->number);
+	}
+     }
+
+    } else {
+
+      if (!(ni = findnick(source))) {
+	notice(s_MemoServ, source, "Your nick is not registered.  Type"
+			"\2/msg %s HELP\2 for information on registering"
+			"your nickname.", s_NickServ);
+
+      } else if (!(ni->flags & (NI_RECOGNIZED | NI_IDENTIFIED)))
+	notice(s_MemoServ, source, "Permission denied.");
+
+      else if (!findnick(arg))
+	notice(s_MemoServ, source, "Nick %s isn't registered.", arg);
+
+#if FILE_VERSION > 3
+      else if (is_on_ignore(source,arg) && !(ni->flags & NI_IRCOP))
+	notice(s_MemoServ, source, "Nick %s is ignoring your memos.", arg);
+#endif
+      
+      else {
+	ml = find_memolist(arg);
+	if (!ml) {
+	    ml = scalloc(sizeof(MemoList), 1);
+	    strscpy(ml->nick, arg, NICKMAX);
+	    alpha_insert_memolist(ml);
+	}
+	++ml->n_memos;
+	ml->memos = srealloc(ml->memos, sizeof(Memo) * ml->n_memos);
+	m = &ml->memos[ml->n_memos-1];
+	strscpy(m->sender, source, NICKMAX);
+	if (ml->n_memos > 1) {
+	    m->number = m[-1].number + 1;
+	    if (m->number < 1) {
+		int i;
+		for (i = 0; i < ml->n_memos; ++i)
+		    ml->memos[i].number = i+1;
+	    }
+	} else
+	    ml->memos[ml->n_memos-1].number = 1;
+	m->time = time(NULL);
+	m->text = sstrdup(text);
+	notice(s_MemoServ, source, "Memo sent to %s.", arg);
+	if (finduser(arg)) {
+	    notice(s_MemoServ, arg, "You have a new memo (#%d) from %s.",
+			m->number, source);
+	    notice(s_MemoServ, arg, "Type \2/msg %s READ %d\2 to read it.",
+			s_MemoServ, m->number);
+	}
+      }
+    }
+}
 
 #endif	/* !SKELETON */

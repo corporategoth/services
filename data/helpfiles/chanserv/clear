@@ -12,5 +12,5 @@ can be any of the following:
              with that mode set.
      users   Removes (kicks) all users from the channel.
 
-Your access level on the channel must be at least 10 to use
+Your access level on the channel must be at least 15 to use
 this command.
