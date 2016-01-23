@@ -41,7 +41,7 @@ static User *new_user(const char *nick)
 
 /* Change the nickname of a user, and move pointers as necessary. */
 
-static void change_user_nick(User *user, const char *nick)
+void change_user_nick(User *user, const char *nick)
 {
     strscpy(user->nick, nick, NICKMAX);
 }
@@ -132,11 +132,12 @@ void get_user_stats(long *nusers, long *memuse)
 /* Send the current list of users to the named user. */
 
 #ifdef OPERSERV
-void send_user_list(const char *source)
+void send_user_list(const char *source, const char *x)
 {
     User *u = userlist;
 
     while (u) {
+      if (!x || match_wild(x, u->nick)) {
 	char buf[1024], *s;
 	struct u_chanlist *c;
 	struct u_chaninfolist *ci;
@@ -157,6 +158,7 @@ void send_user_list(const char *source)
 	    s += sprintf(s, " %s", ci->chan->name);
 #endif
 	notice(s_OperServ, source, "%s%s", u->nick, buf);
+      }
 	u = u->next;
     }
 }
@@ -205,7 +207,7 @@ void do_nick(const char *source, int ac, char **av)
 	char buf[BUFSIZE];
 #endif
 
-	if (debug)
+	if(debug)
 	    log("debug: new user: %s", av[0]);
 
 	/* Ignore the ~ from a lack of identd.  (Identd was never meant
@@ -233,17 +235,19 @@ void do_nick(const char *source, int ac, char **av)
 
 	/* Check to see if it looks like clones. */
 #ifdef CLONES
-	check_clones(user);
+	if (!is_services_nick(av[0])) check_clones(user);
 #endif
 
 #ifdef GLOBALNOTICER
 	/* Send global message to user when they log on */
-	if (f = fopen(LOGON_MSG, "r")) {
-	    while (fgets(buf, sizeof(buf), f)) {
-		buf[strlen(buf)-1] = 0;
-		notice(s_GlobalNoticer, av[0], "%s", buf ? buf : " ");
+	if (!is_services_nick(av[0])) {
+	    if (f = fopen(LOGON_MSG, "r")) {
+		while (fgets(buf, sizeof(buf), f)) {
+		    buf[strlen(buf)-1] = 0;
+		    notice(s_GlobalNoticer, av[0], "%s", buf ? buf : " ");
+		}
+		fclose(f);
 	    }
-	    fclose(f);
 	}
 #endif
 
@@ -256,7 +260,7 @@ void do_nick(const char *source, int ac, char **av)
 							merge_args(ac, av));
 	    return;
 	}
-	if (debug)
+	if(debug)
 	    log("debug: %s changes nick to %s", source, av[0]);
 #ifdef NICKSERV
 	cancel_user(user);
@@ -270,11 +274,13 @@ void do_nick(const char *source, int ac, char **av)
 
 #ifdef NICKSERV
 # ifdef DAL_SERV
-    send_cmd(s_NickServ, "SVSMODE %s -r", user->nick);
+    if (!is_services_nick(av[0]))
+	send_cmd(s_NickServ, "SVSMODE %s -Rra", user->nick);
 # endif
 # ifdef MEMOS
-    if (validate_user(user))
-	check_memos(user->nick);
+    if (!is_services_nick(av[0]))
+	if (validate_user(user))
+	    check_memos(user->nick);
 # endif
 #endif
 }
@@ -306,7 +312,7 @@ void do_join(const char *source, int ac, char **av)
 	if (check_kick(user, s))
 	    continue;
 #endif
-	if (debug)
+	if(debug)
 	    log("debug: %s joins %s", source, s);
 	chan_adduser(user, s);
 	c = smalloc(sizeof(*c));
@@ -345,7 +351,7 @@ void do_part(const char *source, int ac, char **av)
 	t = s + strcspn(s, ",");
 	if (*t)
 	    *t++ = 0;
-	if (debug)
+	if(debug)
 	    log("debug: %s leaves %s", source, s);
 	for (c = user->chans; c && stricmp(s, c->chan->name) != 0; c = c->next)
 	    ;
@@ -387,7 +393,7 @@ void do_kick(const char *source, int ac, char **av)
 						merge_args(ac-2, av+2));
 	    continue;
 	}
-	if (debug)
+	if(debug)
 	    log("debug: kicking %s from %s", s, av[0]);
 	for (c = user->chans; c && stricmp(av[0], c->chan->name) != 0;
 								c = c->next)
@@ -423,7 +429,8 @@ void do_umode(const char *source, int ac, char **av)
     char buf[BUFSIZE];
 #endif
 
-    if (stricmp(source, av[0]) != 0) {
+
+    if (stricmp(source, av[0]) != 0 && !is_services_nick(source)) {
 	log("user: MODE %s %s from different nick %s!", av[0], av[1], source);
 	wallops("%s attempted to change mode %s for %s", source, av[1], av[0]);
 	return;
@@ -434,7 +441,7 @@ void do_umode(const char *source, int ac, char **av)
 							merge_args(ac, av));
 	return;
     }
-    if (debug)
+    if(debug)
 	log("debug: Changing mode for %s to %s", source, av[1]);
     s = av[1];
     while (*s) {
@@ -451,15 +458,21 @@ void do_umode(const char *source, int ac, char **av)
 		    ++opcnt;
 #ifdef GLOBALNOTICER
 		    /* Send global message to user when they oper up */
-		    if (f = fopen(OPER_MSG, "r")) {
-			while (fgets(buf, sizeof(buf), f)) {
-			    buf[strlen(buf)-1] = 0;
-			    notice(s_GlobalNoticer, source, "\37[\37\2OPER\2\37]\37 %s", buf ? buf : " ");
+		    if(!is_services_nick(source)) {
+			if (f = fopen(OPER_MSG, "r")) {
+			    while (fgets(buf, sizeof(buf), f)) {
+				buf[strlen(buf)-1] = 0;
+				notice(s_GlobalNoticer, source, "\37[\37\2OPER\2\37]\37 %s", buf ? buf : " ");
+			    }
+			    fclose(f);
 			}
-			fclose(f);
 		    }
 #endif
+		if (is_services_op(source))
+		    send_cmd(s_NickServ, "SVSMODE %s +a", source);
 		} else {
+		if (is_services_op(source))
+		    send_cmd(s_NickServ, "SVSMODE %s -a", source);
 		    user->mode &= ~UMODE_O;
 		    --opcnt;
 		}
@@ -488,7 +501,7 @@ void do_quit(const char *source, int ac, char **av)
 #endif
 	return;
     }
-    if (debug)
+    if(debug)
 	log("debug: %s quits", source);
     delete_user(user);
 }
@@ -509,7 +522,7 @@ void do_kill(const char *source, int ac, char **av)
     user = finduser(av[0]);
     if (!user)
 	return;
-    if (debug)
+    if(debug)
 	log("debug: %s killed", av[0]);
     delete_user(user);
 }

@@ -24,9 +24,10 @@ cat >version.h <<EOF
 const char version_number[] = "$VERSION";
 const char version_build[] =
 	"build #" BUILD ", compiled " __DATE__ " " __TIME__
-#ifdef SKELETON
-	" (skeleton version)"
-#elifdef READONLY
+#ifdef DEBUG
+	" (debug mode)"
+#endif
+#ifdef READONLY
 	" (read-only mode)"
 #endif
 	;

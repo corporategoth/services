@@ -23,6 +23,15 @@
 #define SERVICES_USER	"reaper"
 #define SERVICES_HOST	"darker.net"
 
+/* Services level means the priority this version of services has over
+ * other services on the net (the higher number, the higher priority).
+ * This is mainly for networks with backup services and want the backups
+ * to kick in should the primaries die.  If this is set >1 then services
+ * are in READ ONLY mode - no database modification will be allowed.
+ * Cannot be set below 1.
+ */
+#define SERVICES_LEVEL	1
+
 /* PICK AND CHOOSE:
  *    To select a module, #define it, to exclude it, #undef it.
  *    a "relies on" means it will be undef if the specified module is not
@@ -30,7 +39,6 @@
  *    "and" denotes both must be enabled, "or" denotes at least one.
  */
 
-/* Available only with NON-SKELETON */
 #define	NICKSERV	/* */
 #define	CHANSERV	/* relies on NICKSERV */
 #define IRCOP_OVERRIDE	/* relies on CHANSERV */
@@ -40,8 +48,6 @@
 #define	MEMOS		/* relies on MEMOSERV */
 #define	NEWS		/* relies on MEMOSERV and CHANSERV */
 #define	DEVNULL		/* */
-
-/* Available even with SKELETON */
 #define	OPERSERV	/* */
 #define	AKILL		/* relies on OPERSERV */
 #define	CLONES		/* relies on OPERSERV */
@@ -87,6 +93,14 @@
 
 /* Subdirectory for help files */
 #define HELPSERV_DIR	"helpfiles"
+
+/* Delay (or if) between attempting to reconnect to parent server if
+ * server is SQUIT or parent server dies.  Undef or ser -1 to disable.
+ * This means services will NOT die upon their parent server doing so
+ * if defined, but it also means it will create 2 log entries for every
+ * (specified) seconds that the parent server is offline.
+ */
+#define SERVER_RELINK	5
 
 /* Delay (in seconds) between database updates.  (Incidentally, this is
  * also how often we check for nick/channel expiration.)
@@ -195,6 +209,19 @@
 /**************************************************************************/
 
 /* System-specific defines */
+
+/* IF your Nick collide works where NEWER NICK takes presidense, then
+ * define this (some do - or at least, it works out that way - test it
+ * undef'd - if you find your BACKUP services (if any) are getting the
+ * services nick's even when your REAL ones are online - define this).
+ *
+ * OK - I created this when my services had this problem - I later found
+ * out the cause - each backup of services needs to have a different set
+ * of user@host's for its users (either user or host or both can be
+ * different, doesnt matter) - TRY CHANGING THAT before defining this -
+ * I'm leaving it in just incase there ARE some wierd ircd's out there.
+ */
+#undef WIERD_COLLIDE
 
 /* IF you cant READ or FORWARD (from channel) memos, define this
  * as some systems are REALLY stupid about it *shrug* (ONLY define

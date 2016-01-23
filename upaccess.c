@@ -474,4 +474,4 @@ void main() {
 
 	save_cs_dbase();
 }
-#endif /* !SKELETON && CHANSERV */
+#endif /* CHANSERV */

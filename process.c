@@ -141,7 +141,7 @@ void process()
 
 
     /* If debugging, log the buffer. */
-    if (debug)
+    if(debug)
 	log("debug: Received: %s", inbuf);
 
     /* First make a copy of the buffer so we have the original in case we
@@ -183,9 +183,7 @@ void process()
 
     } else if (stricmp(cmd, "436") == 0) {  /* Nick collision caused by us */
 
-#if !defined(SKELETON) && !defined(READONLY)
-	introduce_user(av[0]);
-#endif
+   if(services_level==1) introduce_user(av[0]);
 
     } else if (stricmp(cmd, "AWAY") == 0) {
 #ifdef GLOBALNOTICER
@@ -223,7 +221,11 @@ void process()
     } else if (stricmp(cmd, "GLOBOPS") == 0
 	    || stricmp(cmd, "GNOTICE") == 0
 	    || stricmp(cmd, "GOPER"  ) == 0
-	    || stricmp(cmd, "WALLOPS") == 0) {
+	    || stricmp(cmd, "WALLOPS") == 0
+	    || stricmp(cmd, "QLINE"  ) == 0
+	    || stricmp(cmd, "UNQLINE") == 0
+	    || stricmp(cmd, "SVSNOOP") == 0
+	    ) {
 
 	/* Do nothing */
 
@@ -239,39 +241,14 @@ void process()
 	    return;
 	do_kick(source, ac, av);
 
-    } else if (stricmp(cmd, "KILL") == 0) {
+    } else if (stricmp(cmd, "KILL") == 0 || stricmp(cmd, "SVSKILL") == 0) {
 
 	if (ac != 2)
 	    return;
 	do_kill(source, ac, av);
-    if (
-#ifdef NICKSERV
-	stricmp(av[0], s_NickServ) == 0 ||
-#endif
-#ifdef CHANSERV
-	stricmp(av[0], s_ChanServ) == 0 ||
-#endif
-#ifdef HELPSERV
-	stricmp(av[0], s_HelpServ) == 0 ||
-#endif
-#ifdef IRCIIHELP
-	stricmp(av[0], "IrcIIHelp") == 0 ||
-#endif
-#ifdef MEMOSERV
-	stricmp(av[0], s_MemoServ) == 0 ||
-#endif
-#ifdef OPERSERV 
-	stricmp(av[0], s_OperServ) == 0 ||
-#endif
-#ifdef DEVNULL
-	stricmp(av[0], "DevNull") == 0 ||
-#endif
-#ifdef GLOBALNOTICER
-	stricmp(av[0], s_GlobalNoticer) == 0 ||
-#endif
-	0) introduce_user(av[0]);
+	if (is_services_nick(av[0])) introduce_user(av[0]);
 
-    } else if (stricmp(cmd, "MODE") == 0) {
+    } else if (stricmp(cmd, "MODE") == 0 || stricmp(cmd, "SVSMODE") == 0) {
 
 	if (*av[0] == '#' || *av[0] == '&') {
 	    if (ac < 2)
@@ -302,7 +279,7 @@ void process()
 		send_cmd(server_name, "422 %s :MOTD file not found!", source);
 	}
 
-    } else if (stricmp(cmd, "NICK") == 0) {
+    } else if (stricmp(cmd, "NICK") == 0 || stricmp(cmd, "SVSNICK") == 0) {
 
 #if defined(IRC_DALNET) || defined(IRC_UNDERNET)
 # ifdef IRC_DALNET
@@ -451,10 +428,15 @@ void process()
 	if (ac != 1)
 	    return;
 	do_quit(source, ac, av);
+	if (is_services_nick(av[0])) introduce_user(av[0]);
 
-    } else if (stricmp(cmd, "SERVER") == 0 || stricmp(cmd, "SQUIT") == 0) {
+    } else if (stricmp(cmd, "SERVER") == 0) {
 
-	/* Do nothing.  Should we eventually do something? */
+	/* nothing */
+
+    } else if (stricmp(cmd, "SQUIT") == 0) {
+
+	if (services_level!=1) introduce_user(NULL);
 
     } else if (stricmp(cmd, "TOPIC") == 0) {
 
@@ -493,7 +475,7 @@ void process()
     } else if (stricmp(cmd, "VERSION") == 0) {
 
 	if (source)
-	    send_cmd(server_name, "351 %s %s %s (%s%s%s%s%s%s%s%s%s%s%s%s) :-- %s",
+	    send_cmd(server_name, "351 %s %s %s (%s%s%s%s%s%s%s%s%s%s%s%s%d) :-- %s%s",
 			source, version_number, server_name,
 #ifdef NICKSERV
 			"N",
@@ -555,7 +537,8 @@ void process()
 #else
 			"g",
 #endif
-			version_build);
+			services_level, version_build,
+			debug ? " (debug mode)" : "");
 
     } else {
 

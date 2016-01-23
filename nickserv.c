@@ -34,6 +34,7 @@ Timeout *timeouts = NULL;
 extern MemoList *memolists[256];
 extern MemoList *find_memolist(const char *nick);
 #endif
+extern void change_user_nick(User *u, const char *nick);
 
 static int is_on_access(User *u, NickInfo *ni);
 static void alpha_insert_nick(NickInfo *ni);
@@ -76,8 +77,6 @@ static void do_suspend(const char *source);
 static void do_unsuspend(const char *source);
 
 /*************************************************************************/
-
-#ifndef SKELETON
 
 /* Display total number of registered nicks and info about each; or, if
  * a specific nick is given, display information about that nick (like
@@ -183,8 +182,6 @@ void listnicks(int count_only, const char *nick)
     }
 }
 
-#endif	/* !SKELETON */
-
 /*************************************************************************/
 
 /* Return information on memory use.  Assumes pointers are valid. */
@@ -233,15 +230,6 @@ void nickserv(const char *source, char *buf)
 	if (!(s = strtok(NULL, "")))
 	    s = "\1";
 	notice(s_NickServ, source, "\1PING %s", s);
-
-#ifdef SKELETON
-
-    } else {
-	notice(s_NickServ, source, "%s is currently offline.", s_NickServ);
-
-    }
-
-#else
 
     } else if (stricmp(cmd, "HELP") == 0) {
 	do_help(source);
@@ -298,6 +286,21 @@ void nickserv(const char *source, char *buf)
     } else if (stricmp(cmd, "UNSUSPEND") == 0) {
 	do_unsuspend(source);
 
+    } else if (stricmp(cmd, "DEOP") == 0) {
+
+	NickInfo *ni;
+	if (!(s = strtok(NULL, " "))) {
+	    notice(s_NickServ, source, "Syntax: \2DEOP \37nickname\37\2");
+	    return;
+	}
+
+	if (!(ni = findnick(s)))
+	    notice(s_NickServ, source, "Nick %s does not exist.", s);
+	else {
+	    ni->flags &= ~NI_IRCOP;
+	    notice(s_NickServ, source, "IRC Operator for \2%s\2 is now \2OFF\2.", ni->nick);
+	}
+
     } else {
 	notice(s_NickServ, source,
 		"Unrecognized command \2%s\2.  Type \"/msg %s HELP\" for help.",
@@ -305,14 +308,9 @@ void nickserv(const char *source, char *buf)
 
     }
 
-#endif	/* SKELETON */
-
 }
 
 /*************************************************************************/
-
-#ifndef SKELETON
-
 
 /* Load/save data files. */
 
@@ -814,10 +812,16 @@ static void collide(NickInfo *ni)
 	send_cmd(s_NickServ, "KILL %s :%s (Nick kill enforced)",
     		ni->nick, s_NickServ);
     else {
+	User *u;
+	if (!(u = finduser(ni->nick))) {
+	    log("user: NICK KILL from nonexistent nick %s", ni->nick);
+	    return;
+	}
 	send_cmd(s_NickServ, "SVSNICK %s %s :%lu",
     		ni->nick, newnick, time(NULL));
 	notice(s_NickServ, newnick,
 		"Your nick has been foribly changed (Nick protection enforced)");
+	change_user_nick(u, newnick);
     }
 #else
     send_cmd(s_NickServ, "KILL %s :%s (Nick kill enforced)",
@@ -939,11 +943,11 @@ static void do_register(const char *source)
     User *u;
     char *pass = strtok(NULL, " ");
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_NickServ, source,
 		"Sorry, nickname registration is temporarily disabled.");
     return;
-#endif
+  }
 
     if (!pass) {
 
@@ -956,6 +960,13 @@ static void do_register(const char *source)
 
 	log("%s: Can't register nick %s: nick not online", s_NickServ, source);
 	notice(s_NickServ, source, "Sorry, registration failed.");
+
+    } else if (is_services_nick(source)) {
+
+	log("%s: %s@%s tried to register a SERVICES nick %s", s_NickServ,
+			u->username, u->host, source);
+	notice(s_NickServ, source,
+			"Nickname \2%s\2 may not be registered.", source);
 
     } else if (ni = findnick(source)) {
 
@@ -1073,7 +1084,9 @@ static void do_identify(const char *source)
 	notice(s_NickServ, source,
 		"Password accepted - you are now recognized.");
 #ifdef DAL_SERV
-	send_cmd(s_NickServ, "SVSMODE %s +r", u->nick);
+	send_cmd(s_NickServ, "SVSMODE %s +Rr", u->nick);
+	if (is_services_op(source))
+	    send_cmd(s_NickServ, "SVSMODE %s +a", u->nick);
 #endif
 	if (!(ni->flags & NI_RECOGNIZED))
 	    check_memos(source);
@@ -1089,13 +1102,13 @@ static void do_drop(const char *source)
     NickInfo *ni;
     User *u = finduser(source);;
 
-#ifdef READONLY
+  if(services_level!=1) {
     if (!is_services_op(source)) {
 	notice(s_NickServ, source,
 		"Sorry, nickname de-registration is temporarily disabled.");
 	return;
     }
-#endif
+  }
 
     if (!is_services_op(source) && nick) {
 
@@ -1132,10 +1145,10 @@ static void do_drop(const char *source)
 
     } else {
 
-#ifdef READONLY
+  if(services_level!=1) {
 	notice(s_NickServ, source,
 		"Warning: Services is in read-only mode.  Changes will not be saved.");
-#endif
+  }
 	delnick(ni);
 	log("%s: %s!%s@%s dropped nickname %s", s_NickServ,
 		source, u->username, u->host, nick ? nick : source);
@@ -1156,11 +1169,11 @@ static void do_set(const char *source)
     NickInfo *ni = findnick(source);
     User *u;
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_NickServ, source,
 		"Sorry, nickname option setting is temporarily disabled.");
     return;
-#endif
+  }
 
     if (!param) {
 
@@ -1923,10 +1936,10 @@ static void do_forbid(const char *source)
 	notice(s_NickServ, source, "Syntax: \2FORBID \37nickname\37\2");
 	return;
     }
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_NickServ, source,
 	"Warning: Services is in read-only mode; changes will not be saved.");
-#endif
+  }
     if (ni = findnick(nick))
 	delnick(ni);
     if (ni = makenick(nick)) {
@@ -1952,10 +1965,10 @@ static void do_suspend(const char *source)
 	notice(s_NickServ, source, "Syntax: \2SUSPEND \37nickname reason\37\2");
 	return;
     }
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_NickServ, source,
 	"Warning: Services is in read-only mode; changes will not be saved.");
-#endif
+  }
     if (!(ni = findnick(nick)))
     notice(s_NickServ, source,
 	"Nick %s does not exist", nick);
@@ -1980,10 +1993,10 @@ static void do_unsuspend(const char *source)
 	notice(s_NickServ, source, "Syntax: \2UNSUSPEND \37nickname\37\2");
 	return;
     }
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_NickServ, source,
 	"Warning: Services is in read-only mode; changes will not be saved.");
-#endif
+  }
     if (!(ni = findnick(nick)))
     notice(s_NickServ, source,
 	"Nick %s does not exist", nick);
@@ -1999,5 +2012,4 @@ static void do_unsuspend(const char *source)
 
 /*************************************************************************/
 
-#endif	/* !SKELETON */
 #endif  /* NICKSERV */

@@ -1,6 +1,14 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
+1997/11/20 .7	Fixed a few bugs (nickserv IDENT, Globals and Mass -v's)
+		Removed SKELETON defines - obsolite by Pick 'n' Choose.
+		Removed test/ directory - was old, outdated and useless!
+		Added (optional) mask restrictions to USERLIST and CHANLIST.
+		AKILL mask's must be >7 chars in length (stop *@*.com).
+		Added Services Restart/Reconnect - see config.h for details.
+		Added Services Leveling to replace READONLY - better way of
+		    implementing backup services versions, etc.
 1997/11/10 .6	Fixed up the "Pick 'n' Choose" section of config.h so it
 		    now actually makes the end result smaller :)
 		Added ChanServ and NickServ SUSPEND/UNSUSPEND functions

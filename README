@@ -52,10 +52,7 @@ server, data directory, etc.  Most of these can be changed with
 command-line options (see below), but you may find it more convenient to
 set them as defaults.
      The Makefile has a section at the top allowing you to configure
-Services' general mode of operation.  There are three such modes: normal
-(full service available), read-only (-DREADONLY: no changes can be made to
-databases), and skeleton (-DSKELETON: only OperServ is enabled).  Remember
-to "make clean" after you change this!
+Services' general mode of operation.  
      Finally, there's one definition in operserv.c (which really should be
 moved out, I know) which you'll want to edit: s_GlobalNoticer, which sends
 out global notices when OperServ's GLOBAL command is used.  It defaults to
@@ -108,25 +105,31 @@ values:
 	-tz timezone		Name of Services' timezone (e.g. EST)
 	-update secs		How often to update databases, in seconds
 	-debug			Enable debugging mode--more info sent to log
+	-relink secs		Specify seconds to re-attempt link if SQUIT
+	-norelink		Die on SQUIT or kill -1
+	-level level		Specify services level (>1 = backup)
 
      Upon starting, Services will parse its command-line parameters, open
 its logfile, then (assuming all went well) detach itself and run in the
 background.  If Services cannot connect to its uplink server, it will
 terminate immediately; otherwise, it will run until the connection is
 terminated (or a QUIT command is sent; see OperServ's help texts).
-     If Services is compiled with the READONLY compile-time option, it can
-serve as a "backup" to the full version of Services.  A "full" version of
-Services (without READONLY defined) will automatically reintroduce its
-pseudo-clients (NickServ, ChanServ, etc.), while a "backup" Services will
-not, thus allowing full Services to be brought up at any time without
-disrupting the network (and without having to take backup Services down
-beforehand).
+     If Services is compiled with SERVICES_LEVEL > 1, it can serve as a
+"backup" to the full version of Services.  A "full" version of Services
+(of level 1) will automatically reintroduce its pseudo-clients on nick
+collide, while a "backup" Services will not, thus allowing full Services
+to be brought up at any time without disrupting the network (and without
+having to take backup Services down beforehand).
      Two additional programs available in addition to the main executable:
 "listnicks" and "listchans", both installed as hard links to the main
 executable.  The programs will list all registered nicknames and channels,
 respectively; or, if given the -c option, will display the number of
 registered nicknames or channels.
-
+     If you have anykind of "relink" mode active (ie. you didnt undef the
+SERVER_RELINK define or set it to -1, or didnt use the -norelink flag),
+only an OperServ QUIT or SHUTDOWN or a kill -9 will stop services.  A SQUIT
+will just cause relink (after period specified with SERVER_RELINK or the
+-relink flag), as will a kill -1 (both causing the databases to be reloaded).
 
 4. OVERVIEW OF SERVICES CLIENTS
 
@@ -214,6 +217,10 @@ GOPER
     Example:  :hell.darker.net GOPER :WARNING -- clones detected from
                       ppp1-9.lame.com
 
+
+ALSO for recent DALnet ircd's (4.4.15+) the specialised services code is
+used to enable greater control via. services, and enable greater intergration
+including things like setting mode +r for registered nicks, etc.
 
 6. REACHING THE AUTHOR
 

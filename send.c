@@ -28,11 +28,11 @@ void vsend_cmd(const char *source, const char *fmt, va_list args)
     vsprintf(buf, fmt, args);
     if (source) {
 	sockprintf(servsock, ":%s %s\r\n", source, buf);
-	if (debug)
+	if(debug)
 	    log("debug: Sent: :%s %s", source, buf);
     } else {
 	sockprintf(servsock, "%s\r\n", buf);
-	if (debug)
+	if(debug)
 	    log("debug: Sent: %s", buf);
     }
 }
@@ -67,21 +67,27 @@ void noticeall(const char *source, const char *fmt, ...)
 {
     va_list args;
     char buf[2048];
-
-    va_start(args, fmt);
+    int i;
 #ifdef HAVE_ALLWILD_NOTICE
-    sprintf(buf, "NOTICE $* :%s", fmt);
+    const char *domains[] = { "*", NULL };
 #else
 # ifdef NETWORK_DOMAIN
-    sprintf(buf, "NOTICE $*.%s :%s", NETWORK_DOMAIN, fmt);
+    const char *domains[] = { "*." NETWORK_DOMAIN, NULL};
 # else
-    sprintf(buf, "NOTICE $*.com :%s", fmt);
-    sprintf(buf, "NOTICE $*.net :%s", fmt);
-    sprintf(buf, "NOTICE $*.org :%s", fmt);
-    sprintf(buf, "NOTICE $*.edu :%s", fmt);
+    const char *domains[] = {
+    	"*.com",
+    	"*.net",
+    	"*.org",
+    	"*.edu",
+    	NULL };   /* The top levels - add one if you need one! */
 # endif
 #endif
-    vsend_cmd(source, buf, args);
+
+    va_start(args, fmt);
+    for(i=0;domains[i]!=NULL;i++) {
+	sprintf(buf, "NOTICE $%s :%s", domains[i], fmt);
+	vsend_cmd(source, buf, args);
+    }
 }
 
 /* Send a NULL-terminated array of text as NOTICEs. */

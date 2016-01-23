@@ -3,17 +3,14 @@
 
 include Makefile.inc
 
-VERSION = 3.0.6
+VERSION = 3.0.7
 
 ########################## Configuration section ##########################
 
 
 # Compilation options:
-#	-DSKELETON	Compile a "skeleton" version of Services, with only
-#			    OperServ enabled
 #	-DREADONLY	Compile a normal version of Services, but with
 #			    database modification disabled ("backup" Services)
-# Note that SKELETON and READONLY are mutually exclusive.
 #
 # If you change this value, REMEMBER to "make clean", or you may come out
 # with a confused executable!
@@ -31,7 +28,7 @@ CDEFS =
 CP_ALL = cp -dpr
 
 
-CFLAGS = $(CDEFS) $(EXTRA_CFLAGS)
+CFLAGS = -g $(CDEFS) $(EXTRA_CFLAGS)
 
 
 OBJS =	channels.o chanserv.o helpserv.o main.o memoserv.o misc.o \

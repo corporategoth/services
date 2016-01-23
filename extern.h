@@ -17,7 +17,7 @@
 
 E void get_channel_stats(long *nrec, long *memuse);
 #ifdef OPERSERV
-E void send_channel_list(const char *user);
+E void send_channel_list(const char *user, const char *s);
 E void send_channel_users(const char *user, const char *chan);
 #endif
 E Channel *findchan(const char *chan);
@@ -68,6 +68,7 @@ E char *log_filename;
 E char *time_zone;
 E int update_timeout;
 E int debug;
+E int services_level;
 
 E int quitting;
 E char *quitmsg;
@@ -84,7 +85,8 @@ E void fatal(const char *fmt,...);
 E void fatal_perror(const char *fmt,...);
 E void check_file_version(FILE *f, const char *filename);
 E void write_file_version(FILE *f, const char *filename);
-E void introduce_users(const char *);
+E int is_services_nick(const char *nick);
+E void introduce_users(const char *user);
 
 
 /**** memoserv.c ****/
@@ -215,7 +217,7 @@ E void disconn(int s);
 E int usercnt, opcnt, maxusercnt;
 
 #ifdef OPERSERV
-E void send_user_list(const char *user);
+E void send_user_list(const char *user, const char *s);
 #endif
 E void get_user_stats(long *nusers, long *memuse);
 E User *finduser(const char *nick);

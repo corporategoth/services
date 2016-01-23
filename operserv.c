@@ -19,6 +19,7 @@ const char s_GlobalNoticer[] = "Death";
 const char s_OperServ[] = "OperServ";
 
 extern int mode;
+extern int terminating;
 
 #ifdef AKILL
 static int nakill = 0;
@@ -227,11 +228,13 @@ void operserv(const char *source, char *buf)
 
     } else if (stricmp(cmd, "USERLIST") == 0) {
 
-	send_user_list(source);
+	s = strtok(NULL, " ");
+	send_user_list(source, s);
 	
     } else if (stricmp(cmd, "CHANLIST") == 0) {
 
-	send_channel_list(source);
+	s = strtok(NULL, " ");
+	send_channel_list(source, s);
 
     } else if (stricmp(cmd, "CHANUSERS") == 0) {
 
@@ -472,6 +475,7 @@ void operserv(const char *source, char *buf)
 	    else
 		sprintf(quitmsg, "QUIT command received from %s", source);
 	    quitting = 1;
+	    terminating = 1;
 	} else
 	    notice(s_OperServ, source, "Access Denied.");
 
@@ -488,6 +492,7 @@ void operserv(const char *source, char *buf)
             else
 		sprintf(quitmsg, "SHUTDOWN command received from %s", source);
 	    quitting = 1;
+	    terminating = 1;
 	} else
 	    notice(s_OperServ, source, "Access Denied.");
 
@@ -679,10 +684,10 @@ static void do_akill(const char *source, int call)
 	    notice(s_OperServ, source,
 			"Syntax: AKILL ADD \37mask\37 \37reason\37");
 	}
-#ifdef READONLY
+  if(services_level!=1) {
 	notice(s_OperServ, source,
 		"\2Notice:\2 Changes will not be saved!  Services is in read-only mode.");
-#endif
+  }
 
     } else if (stricmp(cmd, "DEL") == 0) {
 	if (mask = strtok(NULL, " ")) {
@@ -707,10 +712,10 @@ static void do_akill(const char *source, int call)
 	} else {
 	    notice(s_OperServ, source, "Syntax: AKILL DEL \37mask\37");
 	}
-#ifdef READONLY
+  if(services_level!=1) {
 	notice(s_OperServ, source,
 		"\2Notice:\2 Changes will not be saved!  Services is in read-only mode.");
-#endif
+  }
 
     } else if (stricmp(cmd, "LIST") == 0) {
 	s = strtok(NULL, " ");

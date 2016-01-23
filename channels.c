@@ -49,7 +49,7 @@ void get_channel_stats(long *nrec, long *memuse)
 /* Send the current list of channels to the named user. */
 
 #ifdef OPERSERV
-void send_channel_list(const char *user)
+void send_channel_list(const char *user, const char *x)
 {
     Channel *c = chanlist;
     char s[16], buf[512], *end;
@@ -57,6 +57,7 @@ void send_channel_list(const char *user)
     int isop, isvoice;
 
     while (c) {
+      if (!x || match_wild(x, c->name)) {
 	sprintf(s, " %d", c->limit);
 	notice(s_OperServ, user, "%s %lu +%s%s%s%s%s%s%s%s%s%s%s %s", c->name,
 				c->creation_time,
@@ -90,6 +91,7 @@ void send_channel_list(const char *user)
 					isop ? "@" : "", u->user->nick);
 	}
 	notice(s_OperServ, user, buf);
+      }
 	c = c->next;
     }
 }
@@ -394,7 +396,7 @@ void do_cmode(const char *source, int ac, char **av)
 							chan->name, nick);
 		    break;
 		}
-		if (debug)
+		if(debug)
 		    log("debug: Setting +o on %s for %s", chan->name, nick);
 #ifdef CHANSERV
 		if (!check_valid_op(user, chan->name, !!strchr(source, '.')))
@@ -442,7 +444,7 @@ void do_cmode(const char *source, int ac, char **av)
 							chan->name, nick);
 		    break;
 		}
-		if (debug)
+		if(debug)
 		    log("debug: Setting +v on %s for %s", chan->name, nick);
 		u = smalloc(sizeof(*u));
 		u->next = chan->voices;

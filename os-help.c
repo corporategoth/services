@@ -10,8 +10,8 @@ static const char *os_help[] = {
 "   \2GLOBAL\2 \37message\37 -- Send a message to all users",
 "   \2STATS\2 -- status of Services and network",
 "   \2LISTSOPS\2 -- Show hardcoded Service Operators",
-"   \2USERLIST\2 -- Send list of users and their modes",
-"   \2CHANLIST\2 -- Send list of channels and their modes/occupants",
+"   \2USERLIST\2 [\37mask\37] -- Send list of users and their modes",
+"   \2CHANLIST\2 [\37mask\37] -- Send list of channels and their modes/occupants",
 "   \2CHANUSERS\2 \37channel\37 -- Send info about users in channel",
 "",
 NULL
@@ -250,19 +250,21 @@ NULL
 #endif /* DAL_SERV */
 /*************************************************************************/
 static const char *userlist_help[] = {
-"Syntax: \2USERLIST\2",
+"Syntax: \2USERLIST\2 [\37MASK\37]",
 "",
 "Sends a list of users, including what their current modes",
 "are, their server, logon time, hostmask, real name, and the",
-"channels they are in, and channels they are founder of.",
+"channels they are in, and channels they are founder of.  If",
+"mask is specified, it will only show those matching it.",
 NULL
 };
 /*************************************************************************/
 static const char *chanlist_help[] = {
-"Syntax: \2CHANLIST\2",
+"Syntax: \2CHANLIST\2 [\37MASK\37]",
 "",
 "Sends a list of channels, including what its modes are,",
-"and who its occupants are (and their status)",
+"and who its occupants are (and their status).  If mask",
+"is specified, it will only show those matching it.",
 NULL
 };
 /*************************************************************************/

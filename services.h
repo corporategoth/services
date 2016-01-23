@@ -11,14 +11,6 @@
 
 /*************************************************************************/
 
-/* Pre-checks to make sure the Makefile has things set up right. */
-
-#if defined(SKELETON) && defined(READONLY)
-# error SKELETON and READONLY cannot both be defined at once!
-#endif
-
-/*************************************************************************/
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,13 +52,6 @@ extern int toupper(char), tolower(char);
 #include "config.h"
 
 /* Satisfy dependancies */
-#ifdef SKELETON
-#  undef NICKSERV
-#  undef HELPSERV
-#  undef IRCIIHELP
-#  undef MEMOSERV
-#  undef DEVNULL
-#endif
 #ifndef NICKSERV
 #  undef CHANSERV
 #  undef MEMOSERV
@@ -85,6 +70,9 @@ extern int toupper(char), tolower(char);
 #ifndef OPERSERV
 #  undef AKILL
 #  undef CLONES
+#endif
+#if SERVICES_LEVEL < 1
+#  error Cannot set SERVICES_LEVEL < 1 - edit the config.h
 #endif
 
 /*************************************************************************/

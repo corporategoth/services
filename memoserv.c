@@ -118,14 +118,6 @@ void memoserv(const char *source, char *buf)
 	    s = "\1";
 	notice(s_MemoServ, source, "\1PING %s", s);
 
-#ifdef SKELETON
-
-    } else {
-	notice(s_MemoServ, source, "%s is currently offline.", s_MemoServ);
-    }
-
-#else
-
     } else if (stricmp(cmd, "HELP") == 0) {
 	do_help(source);
 
@@ -157,14 +149,9 @@ void memoserv(const char *source, char *buf)
 		cmd, s_MemoServ);
 
     }
-
-#endif
 }
 
 /*************************************************************************/
-
-#ifndef SKELETON
-
 
 /* load_ms_dbase, save_ms_dbase:  Load/save memo data. */
 
@@ -1363,5 +1350,4 @@ static void do_fwd2(const char *source, const char *origin, char *arg, const cha
 #endif
 }
 
-#endif	/* !SKELETON */
 #endif  /* MEMOSERV */

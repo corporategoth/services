@@ -1,4 +1,3 @@
-
 /* Services -- main source file.
  * Copyright (c) 1996-97 Preston A. Elder <prez@antisocial.com>  PreZ@DarkerNet
  *
@@ -34,12 +33,17 @@ char *log_filename = LOG_FILENAME;	/* -log filename */
 char *time_zone = TIMEZONE;		/* -tz timezone */
 int update_timeout = UPDATE_TIMEOUT;	/* -update secs */
 int debug = 0;				/* -debug */
+int server_relink = SERVER_RELINK;	/* -relink secs or -norelink */
+int services_level = SERVICES_LEVEL;	/* -level level */
 
 /* What gid should we give to all files?  (-1 = don't set) */
 gid_t file_gid = -1;
 
 /* Set to 1 if we are to quit */
 int quitting = 0;
+
+/* Set to 1 if we are to TOTALLY quit */
+int terminating = 0;
 
 /* Contains a message as to why services is terminating */
 char *quitmsg = NULL;
@@ -70,6 +74,13 @@ static int started = 0;
 
 /* If we get a signal, use this to jump out of the main loop. */
 static jmp_buf panic_jmp;
+
+/* Time to wait before respawn if SQUIT */
+static int waittime = 5;
+
+/* Offset for services nick's LOGON TIME values (changed later
+ * if WIERD_COLLIDE is not defined) */
+static int offset = 65000;
 
 /*************************************************************************/
 
@@ -241,27 +252,27 @@ void write_file_version(FILE *f, const char *filename)
 # ifdef DAL_SERV
 #  define NICK(nick,name) \
     do { \
-	send_cmd(NULL, "NICK %s 1 %lu %s %s %s 1 :%s", (nick), time(NULL), \
+	send_cmd(NULL, "NICK %s 1 %ld %s %s %s 1 :%s", (nick), offset-services_level, \
 		services_user, services_host, server_name, (name)); \
     } while (0)
 # else
 #  define NICK(nick,name) \
     do { \
-	send_cmd(NULL, "NICK %s 1 %lu %s %s %s :%s", (nick), time(NULL), \
+	send_cmd(NULL, "NICK %s 1 %ld %s %s %s :%s", (nick), offset-services_level, \
 		services_user, services_host, server_name, (name)); \
     } while (0)
 # endif
 #elif defined(IRC_UNDERNET)
 # define NICK(nick,name) \
     do { \
-	send_cmd(server_name, "NICK %s 1 %lu %s %s %s :%s", (nick), time(NULL),\
+	send_cmd(server_name, "NICK %s 1 %ld %s %s %s :%s", (nick), offset-services_level,\
 		services_user, services_host, server_name, (name)); \
     } while (0)
 #elif defined(IRC_TS8)
 # define NICK(nick,name) \
     do { \
 	send_cmd(NULL, "NICK %s :1", (nick)); \
-	send_cmd((nick), "USER %ld %s %s %s :%s", time(NULL), \
+	send_cmd((nick), "USER %ld %s %s %s :%s", offset-services_level, \
 		services_user, services_host, server_name, (name)); \
     } while (0)
 #else
@@ -273,50 +284,94 @@ void write_file_version(FILE *f, const char *filename)
     } while (0)
 #endif
 
+int is_services_nick(const char *nick) {
+    if (
+#ifdef NICKSERV
+	stricmp(nick, s_NickServ) == 0 ||
+#endif
+#ifdef CHANSERV
+	stricmp(nick, s_ChanServ) == 0 ||
+#endif
+#ifdef HELPSERV
+	stricmp(nick, s_HelpServ) == 0 ||
+#endif
+#ifdef IRCIIHELP
+	stricmp(nick, "IrcIIHelp") == 0 ||
+#endif
+#ifdef MEMOSERV
+	stricmp(nick, s_MemoServ) == 0 ||
+#endif
+#ifdef OPERSERV 
+	stricmp(nick, s_OperServ) == 0 ||
+#endif
+#ifdef DEVNULL
+	stricmp(nick, "DevNull") == 0 ||
+#endif
+#ifdef GLOBALNOTICER
+	stricmp(nick, s_GlobalNoticer) == 0 ||
+#endif
+	0) return 1;
+    return 0;
+}
+
+static void check_introduce(const char *nick, const char *name)
+{
+    User *u;
+    
+    if (!(u = finduser(nick)))
+	NICK(nick, name);
+    else {
+#ifdef WIERD_COLLIDE
+	if (u->signon < offset-services_level)
+#else
+	if (u->signon > offset-services_level)
+#endif
+	    NICK(nick, name);
+    }
+}
+
 void introduce_user(const char *user)
 {
-#ifndef SKELETON
-# ifdef NICKSERV
+#ifdef NICKSERV
     if (!user || stricmp(user, s_NickServ) == 0) {
-	NICK(s_NickServ, "Nickname Server");
+	check_introduce(s_NickServ, "Nickname Server");
     }
-# endif
-# ifdef CHANSERV
+#endif
+#ifdef CHANSERV
     if (!user || stricmp(user, s_ChanServ) == 0) {
-	NICK(s_ChanServ, "Channel Server");
+	check_introduce(s_ChanServ, "Channel Server");
     }
-# endif
-# ifdef HELPSERV
+#endif
+#ifdef HELPSERV
     if (!user || stricmp(user, s_HelpServ) == 0) {
-	NICK(s_HelpServ, "Help Server");
+	check_introduce(s_HelpServ, "Help Server");
     }
-# endif
-# ifdef IRCIIHELP
+#endif
+#ifdef IRCIIHELP
     if (!user || stricmp(user, "IrcIIHelp") == 0) {
-	NICK("IrcIIHelp", "ircII Help Server");
+	check_introduce("IrcIIHelp", "ircII Help Server");
     }
-# endif
-# ifdef MEMOSERV
+#endif
+#ifdef MEMOSERV
     if (!user || stricmp(user, s_MemoServ) == 0) {
-	NICK(s_MemoServ, "Memo Server");
+	check_introduce(s_MemoServ, "Memo Server");
     }
-# endif
-# ifdef DEVNULL
+#endif
+#ifdef DEVNULL
     if (!user || stricmp(user, "DevNull") == 0) {
-	NICK("DevNull", "/dev/null -- message sink");
+	check_introduce("DevNull", "/dev/null -- message sink");
 	send_cmd(NULL, ":DevNull MODE DevNull +i");
     }
-# endif
 #endif
 #ifdef OPERSERV
     if (!user || stricmp(user, s_OperServ) == 0) {
-	NICK(s_OperServ, "Operator Server");
+	check_introduce(s_OperServ, "Operator Server");
 	send_cmd(s_OperServ, "MODE %s +i", s_OperServ);
     }
 #endif
 #ifdef GLOBALNOTICER
     if (!user || stricmp(user, s_GlobalNoticer) == 0) {
-	NICK(s_GlobalNoticer, "Global Noticer");
+	check_introduce(s_GlobalNoticer, "Global Noticer");
 	send_cmd(s_GlobalNoticer, "MODE %s +io", s_GlobalNoticer);
     }
 #endif
@@ -340,7 +395,7 @@ void remove_pidfile()
 int main(int ac, char **av)
 {
     time_t last_update;	/* When did we last update the databases? */
-#ifndef SKELETON
+#ifdef NICKSERV
     time_t last_check;	/* When did we last check NickServ timeouts? */
 #endif
     int i;
@@ -352,6 +407,13 @@ int main(int ac, char **av)
 #endif
     FILE *pidfile;
 
+  while (!terminating) {
+    quitting = 0;
+    started = 0;
+    quitmsg = NULL;
+    servsock = -1;
+    save_data = 0;
+    file_gid = -1;
 
 #ifdef DEFUMASK
     umask(DEFUMASK);
@@ -400,8 +462,6 @@ int main(int ac, char **av)
     }
 
 
-#ifndef SKELETON
-
     /* Check for program name == "listnicks" or "listchans" and do
      * appropriate special stuff if so. */
 
@@ -412,6 +472,7 @@ int main(int ac, char **av)
 	int count = 0;	/* Count only rather than display? */
 	int usage = 0;	/* Display command usage?  (>0 also indicates error) */
 	int i;
+	terminating = 1;
 
 #ifdef RUNGROUP
 	if (errmsg)
@@ -469,10 +530,10 @@ are given, detailed information about those nicks is displayed.\n\
 #ifndef CHANSERV
 	fprintf(stderr, "ChanServ was not compiled into this version of services\n");
 #else
-
 	int count = 0;	/* Count only rather than display? */
 	int usage = 0;	/* Display command usage?  (>0 also indicates error) */
 	int i;
+	terminating = 1;
 
 #ifdef RUNGROUP
 	if (errmsg)
@@ -529,12 +590,9 @@ are given, detailed information about those channels is displayed.\n\
 #endif
     }
 
-#endif	/* !SKELETON */
-
-
     for (i = 1; i < ac; ++i) {
 	s = av[i];
-	if (*s == '-') {
+	if (*s == '-' || *s == '/') {
 	    ++s;
 	    if (strcmp(s, "remote") == 0) {
 		if (++i >= ac) {
@@ -592,6 +650,30 @@ are given, detailed information about those channels is displayed.\n\
 		    break;
 		}
 		time_zone = av[i];
+	    } else if (strcmp(s, "debug") == 0) {
+		debug = 1;
+	    } else if (strcmp(s, "relink") == 0) {
+		if (++i >= ac) {
+		    log("-relink requires a parameter");
+		    break;
+		}
+		if (atoi(av[i])<0) {
+		    log("-relink parameter must be posetive");
+		    break;
+		}
+		server_relink = atoi(av[i]);
+	    } else if (strcmp(s, "level") == 0) {
+		if (++i >= ac) {
+		    log("-level requires a parameter");
+		    break;
+		}
+		if (atoi(av[i])<=0) {
+		    log("-level parameter must be greater than 0");
+		    break;
+		}
+		services_level = atoi(av[i]);
+	    } else if (strcmp(s, "norelink") == 0) {
+		server_relink = -1;
 	    } else if (strcmp(s, "update") == 0) {
 		if (++i >= ac) {
 		    log("-update requires a parameter");
@@ -602,8 +684,6 @@ are given, detailed information about those channels is displayed.\n\
 		    log("-update: number of seconds must be positive");
 		else
 		    update_timeout = (atoi(s));
-	    } else if (strcmp(s, "debug") == 0) {
-		debug = 1;
 	    } else {
 		log("Unknown option -%s", s);
 	    }
@@ -611,7 +691,9 @@ are given, detailed information about those channels is displayed.\n\
 	    log("Non-option arguments not allowed");
 	}
     }
-
+#ifndef WIERD_COLLIDE
+    offset = services_level * 2;
+#endif
 
     /* Write our PID to the PID file. */
 
@@ -651,11 +733,7 @@ are given, detailed information about those channels is displayed.\n\
     }
 
 
-#ifdef SKELETON
-    log("Services (skeleton version) starting up");
-#else
     log("Services starting up");
-#endif
     start_time = time(NULL);
 
 
@@ -686,19 +764,17 @@ are given, detailed information about those channels is displayed.\n\
 
     /* Load up databases. */
 
-#ifndef SKELETON
-# ifdef NICKSERV
+#ifdef NICKSERV
     load_ns_dbase();
-# endif
-# ifdef CHANSERV
+#endif
+#ifdef CHANSERV
     load_cs_dbase();
-# endif
-# ifdef MEMOS
+#endif
+#ifdef MEMOS
     load_ms_dbase();
-# endif
-# ifdef NEWS
+#endif
+#ifdef NEWS
     load_news_dbase();
-# endif
 #endif
 #ifdef AKILL
     load_akill();
@@ -710,14 +786,14 @@ are given, detailed information about those channels is displayed.\n\
     servsock = conn(remote_server, remote_port);
     if (servsock < 0) {
 	log_perror("Can't connect to server");
-	return 20;
+	goto restart;
     }
     send_cmd(NULL, "PASS :%s", PASSWORD);
     send_cmd(NULL, "SERVER %s 1 :%s", server_name, server_desc);
     sgets2(inbuf, sizeof(inbuf), servsock);
     if (strnicmp(inbuf, "ERROR", 5) == 0) {
 	log("Remote server returned: %s", inbuf);
-	return 20;
+	goto restart;
     }
 
     /* Bring in our pseudo-clients. */
@@ -740,41 +816,41 @@ are given, detailed information about those channels is displayed.\n\
 	time_t t = time(NULL);
 	waiting = -3;
 	if (save_data || t-last_update >= update_timeout) {
-#if !defined(SKELETON) && !defined(READONLY)
+	  if (services_level==1) {
 	    /* First check for expired nicks/channels */
 	    waiting = -22;
-# ifdef NICKSERV
+#ifdef NICKSERV
 	    expire_nicks();
-# endif
-# ifdef CHANSERV
-	    expire_chans();
-# endif
-# ifdef NEWS
-	    expire_news();
-# endif
 #endif
-#if !defined(READONLY) && defined(AKILL)
+#ifdef CHANSERV
+	    expire_chans();
+#endif
+#ifdef NEWS
+	    expire_news();
+#endif
+#ifdef AKILL
 	    expire_akill();
 #endif
+	  }
 	    /* Now actually save stuff */
 	    waiting = -2;
-#if !defined(SKELETON) && !defined(READONLY)
-# ifdef NICKSERV
+	  if (services_level==1) {
+#ifdef NICKSERV
 	    save_ns_dbase();
-# endif
-# ifdef CHANSERV
-	    save_cs_dbase();
-# endif
-# ifdef MEMOS
-	    save_ms_dbase();
-# endif
-# ifdef NEWS
-	    save_news_dbase();
-# endif
 #endif
-#if !defined(READONLY) && defined(AKILL)
+#ifdef CHANSERV
+	    save_cs_dbase();
+#endif
+#ifdef MEMOS
+	    save_ms_dbase();
+#endif
+#ifdef NEWS
+	    save_news_dbase();
+#endif
+#ifdef AKILL
 	    save_akill();
 #endif
+	  }
 	    if (save_data < 0)
 		break;	/* out of main loop */
 
@@ -811,6 +887,13 @@ are given, detailed information about those channels is displayed.\n\
     log("%s", quitmsg);
     if (started)
 	send_cmd(server_name, "SQUIT %s :%s", server_name, quitmsg);
+restart:
     disconn(servsock);
-    return 0;
+
+    if (server_relink > 0)
+	sleep(server_relink);
+    else if (server_relink < 0)
+        return 0;
+  }
+  return 0;
 }

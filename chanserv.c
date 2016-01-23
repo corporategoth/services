@@ -83,8 +83,6 @@ static void do_unsuspend(const char *source);
 /*************************************************************************/
 /*************************************************************************/
 
-#ifndef SKELETON
-
 /* Display total number of registered channels and info about each; or, if
  * a specific channel is given, display information about that channel
  * (like /msg ChanServ INFO <channel>).  If count_only != 0, then only
@@ -231,8 +229,6 @@ void listchans(int count_only, const char *chan)
     }
 }
 
-#endif	/* SKELETON */
-
 /*************************************************************************/
 
 /* Return information on memory use.  Assumes pointers are valid. */
@@ -287,15 +283,6 @@ void chanserv(const char *source, char *buf)
 	if (!(s = strtok(NULL, "")))
 	    s = "\1";
 	notice(s_ChanServ, source, "\1PING %s", s);
-
-#ifdef SKELETON
-
-    } else {
-	notice(s_ChanServ, source, "%s is currently offline.", s_ChanServ);
-
-    }
-
-#else
 
     } else if (stricmp(cmd, "HELP") == 0) {
 	do_help(source);
@@ -368,15 +355,9 @@ void chanserv(const char *source, char *buf)
 		cmd, s_ChanServ);
 
     }
-
-#endif	/* SKELETON */
-
 }
 
 /*************************************************************************/
-
-#ifndef SKELETON
-
 
 /* Load/save data files. */
 
@@ -973,7 +954,7 @@ int check_kick(User *user, const char *chan)
 
 void record_topic(const char *chan)
 {
-#ifndef READONLY
+  if(services_level==1) {
     Channel *c = findchan(chan);
     ChannelInfo *ci = cs_findchan(chan);
 
@@ -989,7 +970,7 @@ void record_topic(const char *chan)
 	strscpy(ci->last_topic_setter, c->topic_setter, NICKMAX);
 	ci->last_topic_time = c->topic_time;
     }
-#endif
+  }
 }
 
 /*************************************************************************/
@@ -1310,11 +1291,11 @@ static void do_register(const char *source)
     User *u = finduser(source);
     struct u_chaninfolist *c;
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 		"Sorry, channel registration is temporarily disabled.");
     return;
-#endif
+  }
 
     if (!desc) {
 
@@ -1472,13 +1453,13 @@ static void do_drop(const char *source)
     User *u = finduser(source);
     int is_servop = is_services_op(source);
 
-#ifdef READONLY
+  if(services_level!=1) {
     if (!is_servop) {
 	notice(s_ChanServ, source,
 		"Sorry, channel de-registration is temporarily disabled.");
 	return;
     }
-#endif
+  }
 
     if (!chan) {
 
@@ -1509,10 +1490,10 @@ static void do_drop(const char *source)
 
     } else {
 
-#ifdef READONLY
+  if(services_level!=1) {
 	notice(s_ChanServ, source,
 		"Warning: Services is in read-only mode; changes will not be saved.");
-#endif
+  }
 	delchan(ci);
 	log("%s: Channel %s dropped by %s!%s@%s", s_ChanServ, chan,
 			source, u->username, u->host);
@@ -1538,11 +1519,11 @@ static void do_set(const char *source)
     User *u;
     int i;
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 		"Sorry, channel option setting is temporarily disabled.");
     return;
-#endif
+  }
 
     if (cmd) {
 	if (stricmp(cmd, "DESC") == 0 || stricmp(cmd, "TOPIC") == 0)
@@ -2104,11 +2085,11 @@ static void do_access(const char *source)
 
     } else if (stricmp(cmd, "ADD") == 0) {
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 		"Sorry, channel access list modification is temporarily disabled.");
     return;
-#endif
+  }
 
 	if (level == 0) {
 	    notice(s_ChanServ, source, "Access level must be non-zero.");
@@ -2172,11 +2153,11 @@ static void do_access(const char *source)
 
     } else if (stricmp(cmd, "DEL") == 0) {
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 	    "Sorry, channel access list modification is temporarily disabled.");
     return;
-#endif
+  }
 
 	/* Special case: is it a number?  Only do search if it isn't. */
 	if (strspn(mask, "1234567890") == strlen(mask) &&
@@ -2300,11 +2281,11 @@ static void do_akick(const char *source)
 	NickInfo *ni = findnick(mask);
 	char *nick, *user, *host;
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 		"Sorry, channel AutoKick list modification is temporarily disabled.");
     return;
-#endif
+  }
 
 	if (ci->akickcount > AKICK_MAX) {
 	    notice(s_ChanServ, source,
@@ -2378,11 +2359,11 @@ static void do_akick(const char *source)
     
     } else if (stricmp(cmd, "DEL") == 0) {
 
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 		"Sorry, channel AutoKick list modification is temporarily disabled.");
     return;
-#endif
+  }
 
 	/* Special case: is it a number?  Only do search if it isn't. */
 	if (strspn(mask, "1234567890") == strlen(mask) &&
@@ -3031,7 +3012,7 @@ static void do_clear(const char *source)
 	for (cu = c->voices; cu; cu = next) {
 	    next = cu->next;
 	    av[0] = sstrdup(chan);
-	    av[1] = sstrdup("-o");
+	    av[1] = sstrdup("-v");
 	    av[2] = sstrdup(cu->user->nick);
 	    do_cmode(s_ChanServ, 3, av);
 	    send_cmd(s_ChanServ, "MODE %s %s :%s", av[0], av[1], av[2]);
@@ -3114,10 +3095,10 @@ static void do_forbid(const char *source)
 	notice(s_ChanServ, source, "Syntax: \2FORBID \37channel\37\2");
 	return;
     }
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 	"Warning: Services is in read-only mode.  Changes will not be saved.");
-#endif
+  }
     if (ci = cs_findchan(chan))
 	delchan(ci);
     if (ci = makechan(chan)) {
@@ -3146,10 +3127,10 @@ static void do_suspend(const char *source)
 	notice(s_ChanServ, source, "Syntax: \2SUSPEND \37channel reason\37\2");
 	return;
     }
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 	"Warning: Services is in read-only mode.  Changes will not be saved.");
-#endif
+  }
     if (!(ci = cs_findchan(chan)))
 	notice(s_ChanServ, source,
 		"Channel \2%s\2 does not exist", chan);
@@ -3210,7 +3191,7 @@ static void do_suspend(const char *source)
 	    for (cu = c->voices; cu; cu = next) {
 		next = cu->next;
 		av[0] = sstrdup(chan);
-		av[1] = sstrdup("-o");
+		av[1] = sstrdup("-v");
 		av[2] = sstrdup(cu->user->nick);
 		do_cmode(s_ChanServ, 3, av);
 		send_cmd(s_ChanServ, "MODE %s %s :%s", av[0], av[1], av[2]);
@@ -3241,10 +3222,10 @@ static void do_unsuspend(const char *source)
 	notice(s_ChanServ, source, "Syntax: \2UNSUSPEND \37channel\37\2");
 	return;
     }
-#ifdef READONLY
+  if(services_level!=1) {
     notice(s_ChanServ, source,
 	"Warning: Services is in read-only mode.  Changes will not be saved.");
-#endif
+  }
     if (!(ci = cs_findchan(chan)))
 	notice(s_ChanServ, source,
 		"Channel \2%s\2 does not exist", chan);
@@ -3277,5 +3258,4 @@ static void do_unsuspend(const char *source)
 
 /*************************************************************************/
 
-#endif	/* !SKELETON */
 #endif  /* CHANSERV */
