@@ -1009,9 +1009,11 @@ static void do_forward(const char *source)
 		char whofrom[NICKMAX];
 		strcpy(whofrom, source);
 		m = &ml->memos[i];
+#ifdef NEWS
 		if (arg3)
 		    do_fwd2(whofrom, m->sender, arg3, m->text);
 		else
+#endif
 		    do_fwd2(whofrom, m->sender, arg2, m->text);
 	    }
       }

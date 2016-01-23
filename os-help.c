@@ -29,7 +29,7 @@ static const char *os_sop_help[] = {
 "   \2UPDATE\2 -- Update *Serv databases (before QUIT)",
 "   \2QUIT\2 -- Terminate services without database save",
 "   \2SHUTDOWN\2 -- Same as UPDATE+QUIT",
-"   \2OFF\2/\2ON\2 -- Deactivate services without terminating",
+"   \2OFF\2/\2ON\2 [\37reason\37] -- Deactivate services without terminating",
 "",
 NULL
 };
@@ -42,7 +42,7 @@ static const char *os_sop_help[] = {
 "   \2UPDATE\2 -- Update *Serv databases (before QUIT)",
 "   \2QUIT\2 -- Terminate services without database save",
 "   \2SHUTDOWN\2 -- Same as UPDATE+QUIT",
-"   \2OFF\2/\2ON\2 -- Deactivate services without terminating",
+"   \2OFF\2/\2ON\2 [\37reason\37] -- Deactivate services without terminating",
 "",
 NULL
 };
@@ -307,7 +307,7 @@ NULL
 };
 /*************************************************************************/
 static const char *offon_help[] = {
-"Syntax: \2OFF\2 \37password\37",
+"Syntax: \2OFF\2 \37password\37 [\37reason\37]",
 "        \2ON\2  \37password\37",
 "",
 "Turns services OFF or ON without terminating them.",

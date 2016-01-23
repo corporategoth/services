@@ -1,7 +1,10 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
-1997/??/?? .8	Changed the way CLONE detection works (MAJORLY!)
+1997/11/30 .9	Little maintinance (checked all various compiles, etc).
+		Fixed MAJOR bug with list-duplication on re-connect.
+		Minor bugfixes and adds (OFF reasons, pidfile fix, etc)
+1997/11/26 .8	Changed the way CLONE detection works (MAJORLY!)
 		Added "CLONE" for allowing more than "Default max clones"
 		Fixed bug that didnt reset "current online" lists.
 		Added "is already there" and "kill all matching" to akill

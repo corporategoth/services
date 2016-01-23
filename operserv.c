@@ -6,10 +6,12 @@
  * details.
  */
 
-/* Nick for sending global notices */
-const char s_GlobalNoticer[] = "Death";
-
 #include "services.h"
+
+/* Nick for sending global notices */
+#ifdef GLOBALNOTICER
+const char s_GlobalNoticer[] = "Death";
+#endif
 
 #ifdef OPERSERV
 
@@ -19,26 +21,15 @@ const char s_GlobalNoticer[] = "Death";
 const char s_OperServ[] = "OperServ";
 
 #ifdef AKILL
-static int nakill = 0;
-static int akill_size = 0;
-static struct akill {
-    char *mask;
-    char *reason;
-    char who[NICKMAX];
-    time_t time;
-} *akills = NULL;
+int nakill = 0;
+int akill_size = 0;
+Akill *akills = NULL;
 #endif
 
 #ifdef CLONES
-static int nclone = 0;
-static int clone_size = 0;
-static struct clone {
-    char *host;
-    int amount;
-    char *reason;
-    char who[NICKMAX];
-    time_t time;
-} *clones = NULL;
+int nclone = 0;
+int clone_size = 0;
+Allow *clones = NULL;
 
 Clone *clonelist = NULL;
 #endif
@@ -72,7 +63,10 @@ void operserv(const char *source, char *buf)
     cmd = strtok(buf, " ");
 
     if(mode==0 && stricmp(cmd, "ON")!=0) {
-	notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
+	if (offreason)
+	    notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2 (%s).", offreason);
+	else
+	    notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
 	return;
     }
 
@@ -437,13 +431,24 @@ void operserv(const char *source, char *buf)
     } else if (stricmp(cmd, "OFF") == 0) {
 
 	char *pass = strtok(NULL, " ");
+	s = strtok(NULL, "");
 	if (!pass)
 	    return;
 	if (stricmp(pass, SUPERPASS)==0) {
 	    mode = 0;
 	    notice(s_OperServ, source, "Services are now switched \2OFF\2.");
+	    wallops("Services switched \2OFF\2 by request of \2%s\2.", source);
+	    if(s) {
+		if (offreason = malloc(strlen(s)+1))
+		    sprintf(offreason, "%s", s);
+		else
+		    offreason = s;
+	    }
 #ifdef GLOBALNOTICER
-	    noticeall(s_GlobalNoticer, "Services are currently \2OFF\2 - Please do not attempt to use them!");
+	    if (offreason)
+		noticeall(s_GlobalNoticer, "Services are currently \2OFF\2 - %s", offreason);
+	    else
+		noticeall(s_GlobalNoticer, "Services are currently \2OFF\2 - Please do not attempt to use them!");
 #endif
 	} else
 	    notice(s_OperServ, source, "Access Denied.");
@@ -456,8 +461,11 @@ void operserv(const char *source, char *buf)
 	if (stricmp(pass, SUPERPASS)==0) {
 	    mode = 1;
 	    notice(s_OperServ, source, "Services are now switched \2ON\2 again.");
+	if (offreason)
+	    offreason = NULL;
+
 #ifdef GLOBALNOTICER
-	    noticeall(s_GlobalNoticer, "Services are back \2ON\2 again - Please use them at will.");
+	    noticeall(s_GlobalNoticer, "Services are back \2ON\2 again - Please use them at will again.");
 #endif
 	} else
 	    notice(s_OperServ, source, "Access Denied.");
@@ -516,32 +524,6 @@ void operserv(const char *source, char *buf)
 		cmd, s_OperServ);
 
     }
-}
-
-/*************************************************************************/
-
-/* Is the given nick a Services op? */
-
-int is_services_op(const char *nick)
-{
-#ifdef NICKSERV
-    NickInfo *ni;
-#endif
-    char tmp[NICKMAX+2];
-
-    strscpy(tmp+1, nick, NICKMAX);
-    tmp[0] = ' ';
-    tmp[strlen(tmp)+1] = 0;
-    tmp[strlen(tmp)] = ' ';
-    if (stristr(" " SERVICES_OPS " ", tmp) == NULL)
-	return 0;
-#ifndef NICKSERV
-    return 1;
-#else
-    if ((ni = findnick(nick)) && (ni->flags & NI_IDENTIFIED) && is_oper(nick))
-	return 1;
-    return 0;
-#endif
 }
 
 /*************************************************************************/

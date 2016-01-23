@@ -16,18 +16,6 @@ const char s_NickServ[] = "NickServ";
 
 #include "ns-help.c"
 
-
-/* Definitions for the timeout list: */
-typedef struct timeout_ Timeout;
-struct timeout_ {
-    Timeout *next, *prev;
-    NickInfo *ni;
-    time_t settime, timeout;
-    int type;
-};
-#define TO_COLLIDE	0	/* Collide the user with this nick */
-#define TO_RELEASE	1	/* Release a collided nick */
-
 Timeout *timeouts = NULL;
 
 static int is_on_access(User *u, NickInfo *ni);
@@ -165,8 +153,8 @@ void listnicks(int count_only, const char *nick)
 	for (i = 33; i < 256; ++i) {
 	    for (ni = nicklists[i]; ni; ni = ni->next) {
 		printf("    %-20s  %s\n", ni->nick,
-			  ni->flags & CI_VERBOTEN  ? "Disallowed (FORBID)"
-			: ni->flags & CI_SUSPENDED ? "Disallowed (SUSPEND)"
+			  ni->flags & NI_VERBOTEN  ? "Disallowed (FORBID)"
+			: ni->flags & NI_SUSPENDED ? "Disallowed (SUSPEND)"
 						: ni->last_usermask);
 		++count;
 	    }
@@ -764,6 +752,7 @@ static int delnick(NickInfo *ni)
 	free(ni->ignore);
     }
 #endif
+    free(ni);
     return 1;
 }
 
@@ -1082,9 +1071,10 @@ static void do_identify(const char *source)
 	if (is_services_op(source))
 	    send_cmd(s_NickServ, "SVSMODE %s +a", u->nick);
 #endif
+#ifdef MEMOS
 	if (!(ni->flags & NI_RECOGNIZED))
 	    check_memos(source);
-
+#endif
     }
 }
 

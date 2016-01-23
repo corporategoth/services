@@ -1138,6 +1138,7 @@ static int delchan(ChannelInfo *ci)
 	free(ci->akick);
     if (ci->cmd_access)
 	free(ci->cmd_access);
+    free(ci);
     return 1;
 }
 

@@ -82,6 +82,7 @@ E int debug;
 E int services_level;
 
 E int mode;
+E char *offreason;
 E int quitting;
 E int terminating;
 E char *quitmsg;
@@ -163,6 +164,7 @@ E char *write_string(const char *s, FILE *f, const char *filename);
 #ifdef NICKSERV
 E const char s_NickServ[];
 E NickInfo *nicklists[256];
+E Timeout *timeouts;
 
 E void listnicks(int count_only, const char *nick);
 E void get_nickserv_stats(long *nrec, long *memuse);
@@ -182,13 +184,17 @@ E NickInfo *findnick(const char *nick);
 
 /**** operserv.c ****/
 
+#ifdef GLOBALNOTICER
+E const char s_GlobalNoticer[];
+#endif
 #ifdef OPERSERV
 E const char s_OperServ[];
-E const char s_GlobalNoticer[];
 
 E void operserv(const char *source, char *buf);
-E int is_services_op(const char *nick);
 #ifdef AKILL
+E Akill *akills;
+E int nakill;
+E int akill_size;
 E void load_akill(void);
 E void save_akill(void);
 E int check_akill(const char *nick, const char *username, const char *host);
@@ -196,6 +202,9 @@ E void expire_akill(void);
 #endif
 #ifdef CLONES
 E Clone *clonelist;
+E Allow *clones;
+E int nclone;
+E int clone_size;
 E void clone_add(const char *nick, const char *host);
 E void clone_del(const char *host);
 #endif
@@ -253,6 +262,7 @@ E void do_umode(const char *source, int ac, char **av);
 E void do_quit(const char *source, int ac, char **av);
 E void do_kill(const char *source, int ac, char **av);
 
+E int is_services_op(const char *nick);
 E int is_oper(const char *nick);
 E int is_on_chan(const char *nick, const char *chan);
 E int is_chanop(const char *nick, const char *chan);

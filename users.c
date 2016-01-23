@@ -497,11 +497,15 @@ void do_umode(const char *source, int ac, char **av)
 			}
 		    }
 #endif
+#ifdef NICKSERV
 		if (is_services_op(source))
 		    send_cmd(s_NickServ, "SVSMODE %s +a", source);
+#endif
 		} else {
+#ifdef NICKSERV
 		if (is_services_op(source))
 		    send_cmd(s_NickServ, "SVSMODE %s -a", source);
+#endif
 		    user->mode &= ~UMODE_O;
 		    --opcnt;
 		}
@@ -565,6 +569,32 @@ int is_oper(const char *nick)
 {
     User *user = finduser(nick);
     return user && (user->mode & UMODE_O);
+}
+
+/*************************************************************************/
+
+/* Is the given nick a Services op? */
+
+int is_services_op(const char *nick)
+{
+#ifdef NICKSERV
+    NickInfo *ni;
+#endif
+    char tmp[NICKMAX+2];
+
+    strscpy(tmp+1, nick, NICKMAX);
+    tmp[0] = ' ';
+    tmp[strlen(tmp)+1] = 0;
+    tmp[strlen(tmp)] = ' ';
+    if (stristr(" " SERVICES_OPS " ", tmp) == NULL)
+	return 0;
+#ifndef NICKSERV
+    return 1;
+#else
+    if ((ni = findnick(nick)) && (ni->flags & NI_IDENTIFIED) && is_oper(nick))
+	return 1;
+    return 0;
+#endif
 }
 
 /*************************************************************************/

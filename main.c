@@ -62,6 +62,8 @@ time_t start_time;
 
 #ifdef OPERSERV
 int mode = 1; /* ON by default! */
+
+char *offreason = NULL;
 #endif
 
 /******** Local variables! ********/
@@ -395,6 +397,132 @@ int is_server(const char *nick)
 
 /*************************************************************************/
 
+/* Reset in preperation for re-start */
+void reset_dbases()
+{
+    NickInfo *ni, *nin;
+    ChannelInfo *ci, *cin;
+    MemoList *ml, *mln;
+    NewsList *nl, *nln;
+    int i, j;
+
+    userlist = NULL;
+    chanlist = NULL;
+#ifdef CLONES
+    clonelist = NULL;
+    clones = NULL;
+    nclone = 0;
+    clone_size = 0;
+#endif
+#ifdef NICKSERV
+    for (j = 33; j < 256; ++j) {
+	ni = nicklists[j];
+	while (ni) {
+#if FILE_VERSION > 2
+	    if (ni->email)
+		free(ni->email);
+	    if (ni->url)
+		free(ni->url);
+#endif
+	    if (ni->last_usermask)
+		free(ni->last_usermask);
+	    if (ni->last_realname)
+		free(ni->last_realname);
+	    if (ni->access) {
+		for (i = 0; i < ni->accesscount; ++i)
+		    free(ni->access[i]);
+		free(ni->access);
+	    }
+#if (FILE_VERSION > 3) && defined(MEMOS)
+	    if (ni->ignore) {
+		for (i = 0; i < ni->ignorecount; ++i)
+		    free(ni->ignore[i]);
+		free(ni->ignore);
+	    }
+#endif
+	    nin = ni->next;
+	    free(ni);
+	    ni = nin;
+	    if (nin)
+		free(nin);
+	}
+	nicklists[j] = NULL;
+    }
+    timeouts = NULL;
+#endif
+#ifdef CHANSERV
+    for (j = 33; j < 256; ++j) {
+	ci = chanlists[j];
+	while (ci) {
+	    if (ci->desc)
+		free(ci->desc);
+#if FILE_VERSION > 2
+	    if (ci->url)
+		free(ci->url);
+#endif
+	    if (ci->mlock_key)
+		free(ci->mlock_key);
+	    if (ci->last_topic)
+		free(ci->last_topic);
+	    for (i = 0; i < ci->accesscount; ++i)
+		free(ci->access[i].name);
+	    if (ci->access)
+		free(ci->access);
+	    for (i = 0; i < ci->akickcount; ++i) {
+		free(ci->akick[i].name);
+		    if (ci->akick[i].reason)
+			free(ci->akick[i].reason);
+	    }
+	    if (ci->akick)
+		free(ci->akick);
+	    if (ci->cmd_access)
+		free(ci->cmd_access);
+	    cin = ci->next;
+	    free(ci);
+	    ci = cin;
+	    if (cin)
+		free(cin);
+	}
+	chanlists[j] = NULL;
+    }
+#endif
+#ifdef MEMOS
+    for (j = 33; j < 256; ++j) {
+	ml = memolists[j];
+	while (ml) {
+	    free(ml->memos);
+	    mln = ml->next;
+	    free(ml);
+	    ml = mln;
+	    if (mln)
+		free(mln);
+	}
+	memolists[j] = NULL;
+    }
+#endif
+#ifdef NEWS
+    for (j = 33; j < 256; ++j) {
+	nl = newslists[j];
+	while (nl) {
+	    free(nl->newss);
+	    nln = nl->next;
+	    free(nl);
+	    nl = nln;
+	    if (nln)
+		free(nln);
+	}
+	newslists[j] = NULL;
+    }
+#endif
+#ifdef AKILL
+    akills = NULL;
+    nakill = 0;
+    akill_size = 0;
+#endif
+}
+
+/*************************************************************************/
+
 /* Remove our PID file.  Done at exit. */
 void remove_pidfile()
 {
@@ -709,18 +837,6 @@ are given, detailed information about those channels is displayed.\n\
     offset = services_level * 2;
 #endif
 
-    /* Write our PID to the PID file. */
-
-    pidfile = fopen(PID_FILE, "w");
-    if (pidfile) {
-    	fprintf(pidfile, "%d\n", getpid());
-    	fclose(pidfile);
-    	atexit(remove_pidfile);
-    } else {
-    	log_perror("Warning: cannot write to PID file %s", PID_FILE);
-    }
-    
-
     /* Redirect stderr to logfile. */
 
     if (!freopen(log_filename, "a", stderr)) {
@@ -744,6 +860,17 @@ are given, detailed information about those channels is displayed.\n\
     if (setpgrp(0, 0) < 0) {
 	log_perror("setpgrp()");
 	return 1;
+    }
+
+    /* Write our PID to the PID file. */
+
+    pidfile = fopen(PID_FILE, "w");
+    if (pidfile) {
+    	fprintf(pidfile, "%d\n", getpid());
+    	fclose(pidfile);
+/*    	atexit(remove_pidfile); */
+    } else {
+    	log_perror("Warning: cannot write to PID file %s", PID_FILE);
     }
 
 
@@ -909,14 +1036,14 @@ are given, detailed information about those channels is displayed.\n\
 	send_cmd(server_name, "SQUIT %s :%s", server_name, quitmsg);
 restart:
     disconn(servsock);
-    userlist = NULL;
-    chanlist = NULL;
-    clonelist = NULL;
+    reset_dbases();
 
     if (server_relink > 0)
 	sleep(server_relink);
     else if (server_relink < 0)
-        return 0;
+	goto endproc;
   }
+endproc:
+  remove_pidfile();
   return 0;
 }

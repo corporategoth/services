@@ -3,7 +3,7 @@
 
 include Makefile.inc
 
-VERSION = 3.0.8
+VERSION = 3.0.9
 
 ########################## Configuration section ##########################
 
@@ -37,12 +37,6 @@ SRCS =	channels.c chanserv.c helpserv.c main.c memoserv.c misc.c \
 
 
 all: services
-
-test: services do-test
-
-do-test:
-	make -C test test-services DATA_DIR=`pwd`/test/data
-	test/test-services $(TEST_OPTIONS) 0 ./services
 
 clean:
 	rm -f *.o services listnicks listchans version.h.old
@@ -81,6 +75,7 @@ services: version.h $(OBJS)
 	@echo '#****************************************************#'
 	@echo '# If you are upgrading from version 3.0.3 or before, #'
 	@echo '# you will need to type "make upaccess" (no quotes). #'
+	@echo '# ------------> ONLY EVER DO THIS ONCE <------------ #'
 	@echo '#****************************************************#'
 
 .c.o:
@@ -90,7 +85,8 @@ upaccess:
 	$(CC) $(CFLAGS) -o upaccess upaccess.c
 	@echo
 	@echo '#************************************************#'
-	@echo "# READ THE upaccess.c FILE BEFORE USING upaccess #"
+	@echo '# READ THE upaccess.c FILE BEFORE USING upaccess #'
+	@echo '# If you've upaccess'd before, DONT DO IT AGAIN! #'
 	@echo '#************************************************#'
 
 channels.o: channels.c services.h

@@ -363,7 +363,10 @@ void process()
 #endif
 #ifdef OPERSERV
 	} else {
-	    notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
+	    if (offreason)
+		notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2 (%s).", offreason);
+	    else
+		notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
 	    return;
 	}
 #endif
@@ -409,7 +412,10 @@ void process()
 #endif
 #ifdef OPERSERV
 	} else {
-	    notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
+	    if (offreason)
+		notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2 (%s).", offreason);
+	    else
+		notice(s_OperServ, source, "Sorry, Services are curently \2OFF\2.");
 	    return;
 	}
 #endif
