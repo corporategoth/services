@@ -92,6 +92,10 @@
 /* Default reason for AKICK if none is given. */
 #define DEF_AKICK_REASON "User has been banned from the channel"
 
+/* Allow IrcOP's to voice/devoice/op/deop/unban/invite, and SOPs
+   to clear when not on chanserv access list for channel */
+#define CS_IRCOP_OVERRIDE
+
 
 
 /******* NickServ configuration *******/

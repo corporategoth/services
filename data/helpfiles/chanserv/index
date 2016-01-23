@@ -13,7 +13,7 @@ specific command, type /msg ChanServ help command.
     AKICK      Maintain the AutoKick list
     DROP       Cancel the registration of a channel
 
-Other commands: INFO, LIST, INVITE
+Other commands: INFO, LIST, INVITE, CLEAR
 
 Note that any channel which is not used for two weeks
 (i.e. which no user on the channel's access list enters

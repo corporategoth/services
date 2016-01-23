@@ -507,7 +507,7 @@ static void do_send(const char *source)
       else if (!(ci = cs_findchan(arg)))
 	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
 
-      else if (!(u = finduser(source)) || get_access(u, ci) < 10)
+      else if (!(u = finduser(source)) || get_access(u, ci) < 15)
 	notice(s_MemoServ, source, "Access denied.");
 
       else {
@@ -840,7 +840,7 @@ static void do_del(const char *source)
 
 	notice(s_MemoServ, source, "Channel %s is not registered.", arg);
 
-      } else if (!(u = finduser(source)) || get_access(u, ci) < 10) {
+      } else if (!(u = finduser(source)) || get_access(u, ci) < 15) {
 
 	notice(s_MemoServ, source, "Access denied.");
 
@@ -855,7 +855,7 @@ static void do_del(const char *source)
 		    break;
 	    }
 	    if (i < nl->n_newss) {
-		if((stricmp(nl->newss[i].sender, source) == 0) || (get_access(u, ci) >= 20)) {
+		if((stricmp(nl->newss[i].sender, source) == 0) || (get_access(u, ci) >= 25)) {
 		    free(nl->newss[i].text); /* Deallocate news text newsry */
 		    --nl->n_newss;		 /* One less news now */
 		    if (i < nl->n_newss)	 /* Move remaining newss down a slot */
@@ -872,7 +872,7 @@ static void do_del(const char *source)
 	    /* Delete all newss.  This requires freeing the newsry holding
 	     * the text of each news and flagging that there are no newss
 	     * left. */
-	     if (get_access(u, ci) < 20)
+	     if (get_access(u, ci) < 25)
 	         notice(s_MemoServ, source, "Access denied.");
 	     else {
 	       for (i = 0; i < nl->n_newss; ++i)

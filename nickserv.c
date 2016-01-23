@@ -1518,11 +1518,21 @@ static void do_list(const char *source)
 		pattern);
 	for (i = 33; i < 256; ++i) {
 	    for (ni = nicklists[i]; ni; ni = ni->next) {
+		if (!(is_oper(source))) {
+		    if (ni->flags & NI_VERBOTEN)
+			continue;
+		}
+		if (ni->flags & NI_VERBOTEN) {
+		    if (strlen(ni->nick) > sizeof(buf))
+			continue;
+		} else {
+		    if (strlen(ni->nick)+strlen(ni->last_usermask) > sizeof(buf))
+			continue;
+		}
 		if (ni->flags & NI_VERBOTEN)
-		    continue;
-		if (strlen(ni->nick)+strlen(ni->last_usermask) > sizeof(buf))
-		    continue;
-		sprintf(buf, "%-20s  %s", ni->nick, ni->last_usermask);
+		    sprintf(buf, "%-20s  << FORBIDDEN >>", ni->nick);
+		else
+		    sprintf(buf, "%-20s  %s", ni->nick, ni->last_usermask);
 		if (match_wild(pattern, buf)) {
 		    if (++nnicks <= 50)
 			notice(s_NickServ, source, "    %s", buf);

@@ -3,6 +3,7 @@
 
 include Makefile.inc
 
+VERSION = 3.0.4
 
 ########################## Configuration section ##########################
 
@@ -55,6 +56,10 @@ spotless: clean
 
 install: all
 	$(INSTALL) services $(BINDEST)/services
+	@if [ -x upaccess ]; then \
+		$(INSTALL) upaccess $(BINDEST)/upaccess \
+	fi
+	$(INSTALL) up
 	rm -f $(BINDEST)/listnicks $(BINDEST)/listchans
 	ln $(BINDEST)/services $(BINDEST)/listnicks
 	ln $(BINDEST)/services $(BINDEST)/listchans
@@ -76,10 +81,21 @@ install-data:
 
 services: version.h $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS) -o $@
-
+	@echo
+	@echo '#****************************************************#'
+	@echo '# If you are upgrading from version 3.0.3 or before, #'
+	@echo '# you will need to type "make upaccess" (no quotes). #'
+	@echo '#****************************************************#'
 
 .c.o:
 	$(CC) $(CFLAGS) -c $<
+
+upaccess:
+	$(CC) $(CFLAGS) -o upaccess upaccess.c
+	@echo
+	@echo '#************************************************#'
+	@echo "# READ THE upaccess.c FILE BEFORE USING upaccess #"
+	@echo '#************************************************#'
 
 channels.o: channels.c services.h
 chanserv.o: chanserv.c cs-help.c services.h
@@ -101,4 +117,4 @@ config.h: sysconf.h
 	touch $@
 
 version.h: services.h $(SRCS)
-	sh version.sh
+	sh version.sh $(VERSION)

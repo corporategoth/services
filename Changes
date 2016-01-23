@@ -1,8 +1,15 @@
 Version 3.0 (PreZ <prez@antisocial.com>)
 -----------
 
+1997/??/?? .4	Added support for DAL4.4.15+ servers.
+		Moved up all chanserv levels by 5 - 5 is now auto-voice.
+		Added /msg operserv listsops (FINALLY!)
+		SOPS now need to be /oper'd to be SOPS (oops)
+		Oper override of chanserv now #definable (in config.h)
 1997/10/22 .3	Fixed a bug in ignore (was stuffing ACCESS list)
 		Added OperServ Mode #channel returning current modes
+		Opers can override chanserv op/deop/invite/unban
+		SOPs can override chanserv clear
 1997/10/21 .2	Added READ ALL to MemoServ (channel and nick)
 		Added ability for oper to op, deop, invite, unban (ChanServ)
 		Added ability for SOP to use clear (ChanServ)

@@ -173,7 +173,11 @@ User *finduser(const char *nick)
  *		av[3] = username
  *		av[4] = hostname
  *		av[5] = user's server
- *		av[6] = user's real name
+ *		WITH DALnet 4.4.15+
+ *			av[6] = 1 = service 0 = user
+ *			av[7] = user's real name
+ *		OTHERWISE
+ *			av[6] = user's real name
  *	Else:
  *		av[1] = time of change
  */
@@ -205,7 +209,11 @@ void do_nick(const char *source, int ac, char **av)
 	user->username = sstrdup(av[3]);
 	user->host = sstrdup(av[4]);
 	user->server = sstrdup(av[5]);
+#ifdef DAL_SERV
+	user->realname = sstrdup(av[7]);
+#else
 	user->realname = sstrdup(av[6]);
+#endif
 
 	/* Check to see if it looks like clones. */
 	check_clones(user);

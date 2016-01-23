@@ -8,10 +8,11 @@ available:
                   that only one person may have founder
                   status (it cannot be given using the
                   ACCESS command).
-     20   Access to change all SET commands except
+     25   Access to change all SET commands except
                   FOUNDER and PASSWORD.
-     10   Access to AKICK command; automatic opping.
-      5   Automatic opping.
+     15   Access to AKICK command; automatic opping.
+     10   Automatic opping.
+      5   Automatic voicing.
       0   No special privileges; can be opped by other
                   ops (unless secure-ops is set).
      <0   May not be opped.

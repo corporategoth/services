@@ -277,7 +277,11 @@ void process()
 
 #if defined(IRC_DALNET) || defined(IRC_UNDERNET)
 # ifdef IRC_DALNET
+#  ifdef DAL_SERV
+	if ((!*source && ac != 8) || (*source && ac != 2))
+#  else
 	if ((!*source && ac != 7) || (*source && ac != 2))
+#  endif
 # else
 	char *s = strchr(source, '.');
 	if ((s && ac != 7) || (!s && ac != 2))

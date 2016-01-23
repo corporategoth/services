@@ -135,6 +135,8 @@ void operserv(const char *source, char *buf)
 	    notice_list(s_OperServ, source, quit_help);
 	else if (stricmp(cmd, "UPDATE") == 0)
 	    notice_list(s_OperServ, source, update_help);
+	else if (stricmp(cmd, "LISTSOPS") == 0)
+	    notice_list(s_OperServ, source, listsops_help);
 	else if (stricmp(cmd, "JUPE") == 0)
 	    notice_list(s_OperServ, source, jupe_help);
 	else if (stricmp(cmd, "SHUTDOWN") == 0)
@@ -170,6 +172,10 @@ void operserv(const char *source, char *buf)
 # endif
 #endif
 #endif
+    } else if (stricmp(cmd, "LISTSOPS") == 0) {
+
+	    notice(s_OperServ, source, "Services OPs: \2%s\2", SERVICES_OPS);
+
     } else if (stricmp(cmd, "AKILL") == 0) {
 
 	do_akill(source);
@@ -343,7 +349,7 @@ int is_services_op(const char *nick)
 #ifdef SKELETON
     return 1;
 #else
-    if ((ni = findnick(nick)) && (ni->flags & NI_IDENTIFIED))
+    if ((ni = findnick(nick)) && (ni->flags & NI_IDENTIFIED) && is_oper(nick))
 	return 1;
     return 0;
 #endif

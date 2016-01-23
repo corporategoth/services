@@ -1,3 +1,4 @@
+
 /* Services -- main source file.
  * Copyright (c) 1996-97 Preston A. Elder <prez@antisocial.com>  PreZ@DarkerNet
  *
@@ -234,11 +235,19 @@ void write_file_version(FILE *f, const char *filename)
  * send NICK commands for all the pseudo-clients. */
 
 #if defined(IRC_DALNET)
-# define NICK(nick,name) \
+# ifdef DAL_SERV
+#  define NICK(nick,name) \
+    do { \
+	send_cmd(NULL, "NICK %s 1 %lu %s %s %s 1 :%s", (nick), time(NULL), \
+		services_user, services_host, server_name, (name)); \
+    } while (0)
+# else
+#  define NICK(nick,name) \
     do { \
 	send_cmd(NULL, "NICK %s 1 %lu %s %s %s :%s", (nick), time(NULL), \
 		services_user, services_host, server_name, (name)); \
     } while (0)
+# endif
 #elif defined(IRC_UNDERNET)
 # define NICK(nick,name) \
     do { \

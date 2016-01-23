@@ -31,6 +31,7 @@ UMASK=
 NETWORK_DOMAIN=
 IRCTYPE="no default"
 IRCTYPE_DEF=
+DALSERV=n
 
 INSTALL=
 
@@ -286,6 +287,21 @@ while [ $ok -eq 0 ] ; do
 			;;
 		4)
 			IRCTYPE_DEF="IRC_DALNET"
+			unset YN
+			while [ -z "$YN" ]; do
+				echo "Are you using DAL4.4.15 or greater? "
+				$ECHO2 "[$DALSERV] $ECHO2SUF"
+				read YN
+				if [ "$YN" = "y" -o "$YN" = "Y" ] ; then
+					DALSERV=y
+				elif [ "$YN" = "n" -o "$YN" = "N" ] ; then
+					DALSERV=n
+				elif [ -z "$YN" ]; then
+					YN="$DALSERV"
+				else
+					unset YN
+				fi
+			done
 			ok=1
 			;;
 		*)
@@ -606,6 +622,13 @@ fi
 cat >>sysconf.h <<EOT
 
 #define $IRCTYPE_DEF
+EOT
+if [ "$DALSERV" = "y" ] ; then cat >>sysconf.h <<EOT
+#define DAL_SERV
+EOT
+fi
+
+cat >>sysconf.h <<EOT
 
 #define HAVE_STRERROR		$HAVE_STRERROR
 #define HAVE_SYS_ERRLIST	$HAVE_SYS_ERRLIST
@@ -652,6 +675,7 @@ UMASK=$UMASK
 NETWORK_DOMAIN="$NETWORK_DOMAIN"
 IRCTYPE=$IRCTYPE
 IRCTYPE_DEF="$IRCTYPE_DEF"
+DALSERV="$DALSERV"
 
 CC="$CC"
 CC_FLAGS="$CC_FLAGS"

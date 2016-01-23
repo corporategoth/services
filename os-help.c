@@ -7,6 +7,7 @@ static const char *os_help[] = {
 "   \2AKILL {ADD|DEL|LIST} [\37mask\37 [\37reason\37]]\2 -- Manipulate the AKILL list",
 "   \2GLOBAL \37message\37\2 -- Send a message to all users",
 "   \2STATS\2 -- status of Services and network",
+"   \2LISTSOPS\2 -- Show hardcoded Service Operators",
 "",
 "\2Notice:\2 All commands sent to OperServ are logged!",
 NULL
@@ -74,6 +75,16 @@ static const char *stats_help[] = {
 "displays information on Services' memory usage.  Using this",
 "option can freeze Services for a short period of time on",
 "large networks, so don't overuse it!",
+NULL
+};
+
+/*************************************************************************/
+
+static const char *listsops_help[] = {
+"Syntax: \2LISTSOPS\2",
+"",
+"Shows the current Service Operators hardcoded into",
+"services.",
 NULL
 };
 
